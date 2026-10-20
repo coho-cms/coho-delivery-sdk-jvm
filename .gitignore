@@ -1,0 +1,10 @@
+.gradle/
+build/
+.kotlin/
+.idea/
+*.iml
+.DS_Store
+.env
+
+# Bundled into coho-codegen by the publish workflow, from coho-template-java and coho-template-kotlin.
+codegen/src/main/resources/templates/

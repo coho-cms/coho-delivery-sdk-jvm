@@ -1,0 +1,47 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{yaml,yml,json,toml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# ---------------------------------------------------------------------------
+# Brace style: ALLMAN, against Kotlin's official K&R convention.
+#
+# Opening brace on its own line for everything that spans lines: DECLARATIONS
+# (class, fun, object, init), CONTROL FLOW (if/else, when, for, while,
+# try/catch), and LAMBDAS, including apply/let/run/also and Gradle Kotlin DSL.
+# A block that fits on one line, such as `map { it.id }`, stays there.
+#
+# A trailing lambda on the next line needs the call's parentheses, even empty
+# ones: `forEach()` then `{ item ->` attaches the lambda to the call, while bare
+# `forEach` then `{` is two statements. Lambda parameters stay on the brace line.
+#
+# Exceptions, where the brace has to stay on the call's line:
+#   - `return { ... }`: on the next line, the lambda is not what is returned.
+#   - Gradle's top-level `plugins`, `buildscript` and `pluginManagement` blocks.
+#     Gradle finds them by their exact `plugins {` form before compiling the
+#     script, with or without parentheses. Their contents are ordinary Allman.
+#
+# Two things fight this and both need watching:
+#   1. ktlint's `standard` ruleset hard-codes K&R and has no Allman mode. The
+#      disables below cover it; adding new standard rules may require more.
+#   2. IntelliJ's Kotlin formatter may not expose a next-line brace option at
+#      all (unlike its Java formatter). If "Reformat Code" collapses braces,
+#      turn off format-on-save for Kotlin rather than fighting it per-file.
+# ---------------------------------------------------------------------------
+[*.{kt,kts}]
+ktlint_standard_statement-wrapping = disabled
+ktlint_standard_curly-spacing = disabled
+ktlint_standard_function-signature = disabled
+ktlint_standard_if-else-wrapping = disabled
+ktlint_standard_multiline-expression-wrapping = disabled

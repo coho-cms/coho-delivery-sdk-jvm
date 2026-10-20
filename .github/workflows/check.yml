@@ -1,0 +1,25 @@
+name: Check
+
+# Version branches only, such as v2026.1.0: pull requests into one, and commits to one.
+on:
+  pull_request:
+    branches: ['v*']
+  push:
+    branches: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+      # The runtime's and the generator's tests, the generated code compared with what is
+      # committed, and that code compiled and read through in Java and in Kotlin.
+      - run: ./gradlew build

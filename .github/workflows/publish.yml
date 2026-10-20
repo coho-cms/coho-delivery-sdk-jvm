@@ -1,0 +1,46 @@
+name: Publish
+
+# Publishes coho-delivery and coho-codegen to Maven Central, together and at one version, when
+# a release tag is pushed: release-v2026.1.0 publishes 2026.1.0. A library made from
+# coho-template-java or coho-template-kotlin depends on that version of both. A version cannot
+# be published twice, so every fix is a new version.
+#
+# Maven Central's namespace com.coho-cms is verified for coho-cms.com. The portal token and the
+# signing key are secrets of this repository's `maven-central` environment.
+on:
+  push:
+    tags: ['release-v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment:
+      name: maven-central
+    steps:
+      - uses: actions/checkout@v5
+      # The tag less its release-v, checked against gradle.properties: the version a build
+      # carries comes from there, so a difference is a failure, not a warning.
+      - name: The version, from the tag
+        run: |
+          version="${GITHUB_REF_NAME#release-v}"
+          local=$(sed -n 's/^version=//p' gradle.properties)
+          if [[ "$local" != "$version" ]]; then
+            echo "::error::gradle.properties says $local; the tag says $version"
+            exit 1
+          fi
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v5
+      - run: ./gradlew build
+      - name: Publish
+        run: ./gradlew publishAndReleaseToMavenCentral --no-configuration-cache
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
