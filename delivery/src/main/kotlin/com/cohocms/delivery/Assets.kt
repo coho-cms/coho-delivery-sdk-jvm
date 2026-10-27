@@ -23,7 +23,7 @@ data class AssetFile(
 /**
  * How to resize an image. [SCALE], the default, keeps the aspect ratio; [FILL] crops to
  * exactly the width and height around the focal point, as [CROP] and [THUMB] do; [PAD] fits the
- * image inside them, on `background`.
+ * image inside them and fills the rest with a colour the deployment sets.
  */
 enum class ImageFit(internal val value: String)
 {
@@ -48,7 +48,11 @@ enum class ImageFormat(internal val value: String)
  * How an image is asked for. Every value is optional.
  *
  * @property quality 1 to 100, which the edge rounds to a multiple of 5; its default is 75.
- * @property background The colour around a [ImageFit.PAD], as `rrggbb`.
+ *
+ * ⚠️ There is no `background`. A [ImageFit.PAD] is filled, and a `jpg` flattened, with a colour
+ * the deployment sets rather than one a URL carries. It used to be `bg` here: six hex digits, so
+ * about seventeen million cache keys for one image and as many transforms, which anyone could
+ * walk. Adding it back means adding that back.
  */
 data class ImageOptions @JvmOverloads constructor(
     val width: Int? = null,
@@ -56,7 +60,6 @@ data class ImageOptions @JvmOverloads constructor(
     val fit: ImageFit? = null,
     val format: ImageFormat? = null,
     val quality: Int? = null,
-    val background: String? = null,
 )
 {
     fun withWidth(width: Int) = copy(width = width)
@@ -184,7 +187,6 @@ open class Asset(
             "fit" to options.fit?.value,
             "fm" to options.format?.value,
             "q" to options.quality,
-            "bg" to options.background,
         )
         // The edge cannot look the focal point up, so a crop is told where to centre.
         val focal = focalPoint
