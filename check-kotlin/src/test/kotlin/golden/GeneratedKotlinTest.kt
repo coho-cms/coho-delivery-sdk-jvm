@@ -10,12 +10,14 @@ import com.cohocms.delivery.ListOptions
 import com.cohocms.delivery.ReadOptions
 import com.cohocms.delivery.ReleasedConfig
 import com.cohocms.delivery.Replay
+import com.cohocms.delivery.Spec
 import com.cohocms.delivery.hydrate
 import com.cohocms.delivery.resolved
 import golden.deliveryfixture.coho.Article
 import golden.deliveryfixture.coho.Citation
 import golden.deliveryfixture.coho.Coho
 import golden.deliveryfixture.coho.Figure
+import golden.deliveryfixture.coho.Step
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -62,6 +64,32 @@ class GeneratedKotlinTest
 
         val sources: List<Citation> = coho.figure.byId("00000000-0000-7000-8000-0000000000f2")!!.sources
         assertEquals(listOf(2022L, 2010L), sources.map { it.year })
+    }
+
+    @Test
+    fun `lists and localized item fields read in the requested locale`()
+    {
+        val figure = coho().figure.byId("00000000-0000-7000-8000-0000000000f3", ReadOptions(locale = "de-DE"))!!
+
+        val steps: List<Step> = figure.steps
+        assertEquals(listOf("Messen", null), steps.map { it.label })
+        // None in this locale, on purpose: an empty list, as delivery sent it.
+        val keywords: List<String>? = figure.keywords
+        assertEquals(emptyList(), keywords)
+        val sizes: List<Long> = figure.sizes
+        assertEquals(listOf(3L, 5L), sizes)
+    }
+
+    @Test
+    fun `a localized list the locale has no translation of is null, and an unlocalized one empty`()
+    {
+        val json = Spec.body("entry-with-localized-items").deepCopy<com.fasterxml.jackson.databind.JsonNode>()
+        val fields = json.path("entries").path("00000000-0000-7000-8000-0000000000f3").path("fields") as com.fasterxml.jackson.databind.node.ObjectNode
+        fields.remove(listOf("keywords", "sizes"))
+
+        val figure = assertIs<Figure>(hydrate(EntryGraph.of(json), Coho.FACTORIES) { }.single())
+        assertNull(figure.keywords)
+        assertEquals(emptyList(), figure.sizes)
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.cohocms.codegen
 
+import com.cohocms.codegen.Plan.Companion.LIST_ITEMS
 import com.cohocms.codegen.Plan.Companion.constant
 import com.cohocms.codegen.Plan.Companion.doc
 import com.cohocms.codegen.Plan.Companion.imageOnly
@@ -62,13 +63,24 @@ internal class JavaWriter(private val plan: Plan, private val packageName: Strin
                 if (component.isEmpty()) Shape("List<RepeaterItem>", "entry.repeaterItems(${literal(field.id)})", true)
                 else Shape("List<$component>", "entry.items(${literal(field.id)}, $component.class)", true)
             }
-            "json" -> Shape("@Nullable JsonNode", "entry.json(${literal(field.id)})", false)
-            else ->
+            "list" ->
             {
-                plan.unknown(owner, field)
-                Shape("@Nullable JsonNode", "entry.json(${literal(field.id)})", false)
+                // Plain values, never links. Missing, it is empty, as a list of references is; but a
+                // localized one is null, so a locale with no translation and one with none differ.
+                val (item, read) = LIST_ITEMS[field.item] ?: return unknown(owner, field)
+                if (field.localized && !field.always) Shape("@Nullable List<$item>", "entry.${read}OrNull(${literal(field.id)})", false)
+                else Shape("List<$item>", "entry.$read(${literal(field.id)})", true)
             }
+            "json" -> Shape("@Nullable JsonNode", "entry.json(${literal(field.id)})", false)
+            else -> unknown(owner, field)
         }
+    }
+
+    /** A field of a kind, or a list of an item, this generator does not know: its JSON, with a warning. */
+    private fun unknown(owner: String, field: Field): Shape
+    {
+        plan.unknown(owner, field)
+        return Shape("@Nullable JsonNode", "entry.json(${literal(field.id)})", false)
     }
 
     private fun getter(property: String) = "get${property.replaceFirstChar { it.uppercase() }}"

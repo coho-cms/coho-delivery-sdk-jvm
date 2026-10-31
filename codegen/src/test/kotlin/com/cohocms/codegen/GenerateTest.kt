@@ -45,7 +45,7 @@ class GenerateTest
     }
 
     private fun model(fields: String, slug: String = "story", immutable: Boolean = true) = TypeModel.parse(
-        """{"irVersion":"1.4","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
+        """{"irVersion":"1.5","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
             "types":{"$slug":{"slug":"$slug","name":"Story","version":"1","fields":[$fields]}}}""",
         "test",
     )
@@ -82,6 +82,60 @@ class GenerateTest
         val generated = generate(model(field("where", "geopoint")), "p.coho", Language.JAVA)
         assertContains(contents(generated, "Story.java"), "this.where = entry.json(\"where\");")
         assertTrue(generated.warnings.any { "'geopoint'" in it })
+    }
+
+    @Test
+    fun `a list is a list of its item's type, and a localized one is null where the locale has no translation`()
+    {
+        val fields = listOf(
+            field("keywords", "list", ""","item":"text"""").replace("\"localized\":false", "\"localized\":true"),
+            field("sizes", "list", ""","item":"integer","max":5"""),
+            field("scores", "list", ""","item":"number""""),
+            field("sessions", "list", ""","item":"datetime","min":1""").replace("\"maybe\"", "\"always\""),
+        ).joinToString(",")
+
+        val kotlin = generate(model(fields), "p.coho", Language.KOTLIN)
+        val story = contents(kotlin, "Story.kt")
+        assertContains(story, "/** keywords. Null where the locale has no translation, and empty where it has none on purpose. */")
+        assertContains(story, """val keywords: List<String>? = entry.textsOrNull("keywords")""")
+        assertContains(story, """val sizes: List<Long> = entry.integers("sizes")""")
+        assertContains(story, """val scores: List<Double> = entry.numbers("scores")""")
+        assertContains(story, """val sessions: List<OffsetDateTime> = entry.dateTimes("sessions")""")
+        assertContains(story, "import java.time.OffsetDateTime")
+        assertEquals(emptyList(), kotlin.warnings)
+
+        val java = generate(model(fields), "p.coho", Language.JAVA)
+        val page = contents(java, "Story.java")
+        assertContains(page, "this.keywords = entry.textsOrNull(\"keywords\");")
+        assertContains(page, "public @Nullable List<String> getKeywords()")
+        // Not localized, so never null: missing, it is empty.
+        assertContains(page, "public List<Long> getSizes()")
+        assertContains(page, "public List<OffsetDateTime> getSessions()")
+        assertEquals(emptyList(), java.warnings)
+    }
+
+    @Test
+    fun `a component's list, localized or not, is typed as a type's is`()
+    {
+        val fixture = File(spec, "type-model/fixtures/lists.json")
+        val kotlin = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.KOTLIN)
+        val talk = contents(kotlin, "Talk.kt")
+        assertContains(talk, """val speakers: List<String> = entry.texts("speakers")""")
+        assertContains(talk, "/** tracks. Null where the locale has no translation, and empty where it has none on purpose. */")
+        assertContains(talk, """val tracks: List<Long>? = entry.integersOrNull("tracks")""")
+
+        val java = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.JAVA)
+        assertContains(contents(java, "Talk.java"), "public @Nullable List<Long> getTracks()")
+        assertContains(contents(java, "Talk.java"), "public List<String> getSpeakers()")
+        assertTrue(java.warnings.none { "does not know" in it })
+    }
+
+    @Test
+    fun `a list of an item this generator does not know is read as JSON, with a warning`()
+    {
+        val generated = generate(model(field("where", "list", ""","item":"geopoint"""")), "p.coho", Language.KOTLIN)
+        assertContains(contents(generated, "Story.kt"), """val where: JsonNode? = entry.json("where")""")
+        assertTrue(generated.warnings.any { "a list of 'geopoint'" in it })
     }
 
     @Test

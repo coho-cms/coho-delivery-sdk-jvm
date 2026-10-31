@@ -162,7 +162,7 @@ class EntryReader internal constructor(
     fun text(field: String): String?
     {
         val node = value(field) ?: return null
-        return if (node.isTextual) node.asText() else wrong(field, "text")
+        return asText(node) ?: wrong(field, "text")
     }
 
     fun requiredText(field: String): String = required(field, text(field), "")
@@ -170,7 +170,7 @@ class EntryReader internal constructor(
     fun integer(field: String): Long?
     {
         val node = value(field) ?: return null
-        return if (node.isIntegralNumber && node.canConvertToLong()) node.asLong() else wrong(field, "a whole number")
+        return asInteger(node) ?: wrong(field, "a whole number")
     }
 
     fun requiredInteger(field: String): Long = required(field, integer(field), 0L)
@@ -178,7 +178,7 @@ class EntryReader internal constructor(
     fun number(field: String): Double?
     {
         val node = value(field) ?: return null
-        return if (node.isNumber) node.asDouble() else wrong(field, "a number")
+        return asNumber(node) ?: wrong(field, "a number")
     }
 
     fun requiredNumber(field: String): Double = required(field, number(field), 0.0)
@@ -195,18 +195,7 @@ class EntryReader internal constructor(
     fun dateTime(field: String): OffsetDateTime?
     {
         val node = value(field) ?: return null
-        if (!node.isTextual)
-        {
-            return wrong(field, "a date and time")
-        }
-        return try
-        {
-            OffsetDateTime.parse(node.asText())
-        }
-        catch (_: DateTimeParseException)
-        {
-            wrong(field, "a date and time")
-        }
+        return asDateTime(node) ?: wrong(field, "a date and time")
     }
 
     /** A date and time; when missing, the epoch. */
@@ -215,17 +204,50 @@ class EntryReader internal constructor(
     /** A JSON field, as it was stored. */
     fun json(field: String): JsonNode? = value(field)
 
-    /** A multichoice: each value chosen. */
-    fun texts(field: String): List<String>
+    /* LISTS */
+    /* LISTS */
+    /* LISTS */
+
+    /**
+     * A list of plain values, each read as [read] reads one; null when the field is missing. A
+     * value of another kind is reported and left out.
+     */
+    private fun <T : Any> valuesOrNull(field: String, kind: String, read: (JsonNode) -> T?): List<T>?
     {
-        val node = value(field) ?: return emptyList()
+        val node = value(field) ?: return null
         if (!node.isArray)
         {
-            wrong(field, "a list")
-            return emptyList()
+            return wrong(field, "a list")
         }
-        return node.mapNotNull { if (it.isTextual) it.asText() else wrong(field, "text") }
+        return node.mapNotNull { read(it) ?: wrong(field, kind) }
     }
+
+    /** A list of plain values; empty when the field is missing, as a list of references is. */
+    private fun <T : Any> values(field: String, kind: String, read: (JsonNode) -> T?): List<T> =
+        valuesOrNull(field, kind, read) ?: emptyList()
+
+    /** A multichoice's values, or a list of text. */
+    fun texts(field: String): List<String> = values(field, "text", ::asText)
+
+    /** A list of whole numbers. */
+    fun integers(field: String): List<Long> = values(field, "a whole number", ::asInteger)
+
+    /** A list of numbers. */
+    fun numbers(field: String): List<Double> = values(field, "a number", ::asNumber)
+
+    /** A list of dates and times, each with its offset. */
+    fun dateTimes(field: String): List<OffsetDateTime> = values(field, "a date and time", ::asDateTime)
+
+    // A localized list's readers. Null where the locale has no translation, and so the field is
+    // missing; empty where the locale has none on purpose, which delivery sends as [].
+
+    fun textsOrNull(field: String): List<String>? = valuesOrNull(field, "text", ::asText)
+
+    fun integersOrNull(field: String): List<Long>? = valuesOrNull(field, "a whole number", ::asInteger)
+
+    fun numbersOrNull(field: String): List<Double>? = valuesOrNull(field, "a number", ::asNumber)
+
+    fun dateTimesOrNull(field: String): List<OffsetDateTime>? = valuesOrNull(field, "a date and time", ::asDateTime)
 
     /* REFERENCES */
     /* REFERENCES */
@@ -340,5 +362,28 @@ class EntryReader internal constructor(
         val EPOCH: OffsetDateTime = Instant.EPOCH.atOffset(ZoneOffset.UTC)
 
         val EMPTY: ObjectNode = JsonNodeFactory.instance.objectNode()
+
+        // One value of each kind, or null when the node is not one: a field's, or one of a list's.
+        fun asText(node: JsonNode): String? = if (node.isTextual) node.asText() else null
+
+        fun asInteger(node: JsonNode): Long? = if (node.isIntegralNumber && node.canConvertToLong()) node.asLong() else null
+
+        fun asNumber(node: JsonNode): Double? = if (node.isNumber) node.asDouble() else null
+
+        fun asDateTime(node: JsonNode): OffsetDateTime?
+        {
+            if (!node.isTextual)
+            {
+                return null
+            }
+            return try
+            {
+                OffsetDateTime.parse(node.asText())
+            }
+            catch (_: DateTimeParseException)
+            {
+                null
+            }
+        }
     }
 }

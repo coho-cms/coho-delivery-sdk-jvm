@@ -8,6 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.cohocms.delivery.ClientOptions;
 import com.cohocms.delivery.ContentConfig;
+import com.cohocms.delivery.EntryBase;
+import com.cohocms.delivery.EntryGraph;
+import com.cohocms.delivery.HydrationKt;
 import com.cohocms.delivery.ImageOptions;
 import com.cohocms.delivery.Linked;
 import com.cohocms.delivery.ListOptions;
@@ -15,10 +18,14 @@ import com.cohocms.delivery.Page;
 import com.cohocms.delivery.ReadOptions;
 import com.cohocms.delivery.ReleasedConfig;
 import com.cohocms.delivery.Replay;
+import com.cohocms.delivery.Spec;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import golden.deliveryfixture.coho.Article;
 import golden.deliveryfixture.coho.Citation;
 import golden.deliveryfixture.coho.Coho;
 import golden.deliveryfixture.coho.Figure;
+import golden.deliveryfixture.coho.Step;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -79,6 +86,32 @@ class GeneratedJavaTest
         List<Citation> sources = withSources.getSources();
         assertEquals(2, sources.size());
         assertEquals(2010L, sources.get(1).getYear());
+    }
+
+    @Test
+    void listsAndLocalizedItemFieldsReadInTheRequestedLocale()
+    {
+        Figure figure = coho().figure().byId("00000000-0000-7000-8000-0000000000f3", ReadOptions.DEFAULT.withLocale("de-DE"));
+        assertNotNull(figure);
+
+        List<Step> steps = figure.getSteps();
+        assertEquals("Messen", steps.get(0).getLabel());
+        assertNull(steps.get(1).getLabel());
+        // None in this locale, on purpose: an empty list, as delivery sent it.
+        assertEquals(List.of(), figure.getKeywords());
+        assertEquals(List.of(3L, 5L), figure.getSizes());
+    }
+
+    @Test
+    void aLocalizedListTheLocaleHasNoTranslationOfIsNullAndAnUnlocalizedOneEmpty()
+    {
+        JsonNode json = Spec.INSTANCE.body("entry-with-localized-items").deepCopy();
+        ((ObjectNode) json.path("entries").path("00000000-0000-7000-8000-0000000000f3").path("fields")).remove(List.of("keywords", "sizes"));
+
+        List<EntryBase> roots = HydrationKt.hydrate(EntryGraph.of(json), Coho.FACTORIES, issue -> { });
+        Figure figure = assertInstanceOf(Figure.class, roots.get(0));
+        assertNull(figure.getKeywords());
+        assertEquals(List.of(), figure.getSizes());
     }
 
     @Test

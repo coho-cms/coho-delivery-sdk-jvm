@@ -16,6 +16,9 @@ public final class Figure extends EntryBase
     private final @Nullable Asset poster;
     private final List<Asset> gallery;
     private final List<Citation> sources;
+    private final List<Step> steps;
+    private final @Nullable List<String> keywords;
+    private final List<Long> sizes;
 
     public Figure(EntryReader entry)
     {
@@ -25,6 +28,9 @@ public final class Figure extends EntryBase
         this.poster = entry.asset("poster");
         this.gallery = entry.assets("gallery");
         this.sources = entry.items("sources", Citation.class);
+        this.steps = entry.items("steps", Step.class);
+        this.keywords = entry.textsOrNull("keywords");
+        this.sizes = entry.integers("sizes");
     }
 
     /** caption */
@@ -55,5 +61,23 @@ public final class Figure extends EntryBase
     public List<Citation> getSources()
     {
         return sources;
+    }
+
+    /** steps */
+    public List<Step> getSteps()
+    {
+        return steps;
+    }
+
+    /** keywords. Null where the locale has no translation, and empty where it has none on purpose. */
+    public @Nullable List<String> getKeywords()
+    {
+        return keywords;
+    }
+
+    /** sizes */
+    public List<Long> getSizes()
+    {
+        return sizes;
     }
 }

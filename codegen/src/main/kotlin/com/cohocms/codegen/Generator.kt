@@ -179,14 +179,23 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
         }
     }
 
+    /** A field's doc note. [list] says the field reads as a list that is empty, never null, when missing. */
     fun note(field: Field, list: Boolean): String = listOfNotNull(
         if (field.kind == "choice" && field.values.isNotEmpty()) "One of ${listed(field.values, "or")}, or a value added since." else null,
         if (field.kind == "asset" && field.accept.isNotEmpty()) "Accepts ${field.accept.joinToString(", ")}." else null,
         if (field.kind == "asset" && !field.many) "Null where the asset it linked is gone." else null,
         if (field.kind == "longText" && field.textFormat == "markdown") "Markdown." else null,
         if (field.kind == "longText" && field.textFormat == "html") "HTML." else null,
-        if (field.localized) "${if (list) "Empty" else "Null"} where the locale has no translation." else null,
+        if (field.localized) localized(field, list) else null,
     ).joinToString(" ")
+
+    private fun localized(field: Field, list: Boolean): String = when
+    {
+        // A localized list is null where the locale has no translation, so [] still means none.
+        field.kind == "list" && !list -> "Null where the locale has no translation, and empty where it has none on purpose."
+        list -> "Empty where the locale has no translation."
+        else -> "Null where the locale has no translation."
+    }
 
     fun summary(type: ContentType, component: Boolean): String = listOfNotNull(
         if (component) "A repeater item, stored in the entry that holds it." else null,
@@ -199,7 +208,8 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
 
     fun unknown(owner: String, field: Field)
     {
-        warnings += "$owner.${field.id} is a '${field.kind}', which this generator does not know; it is read as JSON. Upgrade coho-codegen."
+        val what = if (field.kind == "list") "list of '${field.item}'" else "'${field.kind}'"
+        warnings += "$owner.${field.id} is a $what, which this generator does not know; it is read as JSON. Upgrade coho-codegen."
     }
 
     companion object
@@ -215,6 +225,16 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
             "true", "false", "null", "var", "record", "yield", "sealed", "permits",
             // Kotlin's hard keywords Java does not have
             "as", "fun", "in", "is", "object", "typealias", "typeof", "val", "when",
+        )
+        /**
+         * Since 1.5, a list's value type, which both languages name alike, and the runtime's reader
+         * of it, by the list's `item`. A localized list is read with the reader's `OrNull` form.
+         */
+        val LIST_ITEMS = mapOf(
+            "text" to ("String" to "texts"),
+            "integer" to ("Long" to "integers"),
+            "number" to ("Double" to "numbers"),
+            "datetime" to ("OffsetDateTime" to "dateTimes"),
         )
         val RASTER_IMAGES = setOf("image/png", "image/jpeg", "image/gif", "image/webp", "image/avif", "image/heic")
 

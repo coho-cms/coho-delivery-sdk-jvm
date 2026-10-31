@@ -48,7 +48,8 @@ The generated code is in the package's `coho` subpackage, `com.acme.content.coho
 - **One class per content type, in its own file**: `blogPost` is `BlogPost`. Its constructor
   reads each field from the entry. In Java, each field has a getter, `getPublishedAt()`, with
   JSpecify's `@Nullable` where delivery can leave it out; in Kotlin, a property, nullable
-  there. Every localized field can be left out, so it is nullable.
+  there. Every localized field can be left out, in a repeater's items too, so it is nullable,
+  a localized list included.
 - **References are typed by their targets**: `Linked<TeamMember>`, the entry, or a stub
   saying why it is not there. A list of them is never null: it is empty.
 - **An asset field is an `Asset`**, or an `ImageAsset` when it accepts only raster images,
@@ -58,6 +59,13 @@ The generated code is in the package's `coho` subpackage, `com.acme.content.coho
   `Citation`, and a repeater is a `List<Citation>`, or a `List<ItemBase>` when it holds several
   components. An item of a component added after the code was generated is left out, and
   reported.
+- **A list holds plain values**: `List<String>`, `List<Long>`, `List<Double>`, or
+  `List<OffsetDateTime>`, by the kind of its items. A localized list is nullable: null where
+  the requested locale has no translation, and empty where it has none on purpose, so the two
+  read differently. A list that is not localized is never null: where delivery leaves it out,
+  it is empty, as a list of references is. Its `min` and `max` count its values, and it is
+  never sortable. Since type model 1.5; an older coho-codegen reads a list as JSON, with a
+  warning.
 - **A type that extends another extends its class**, which is then open, and declares only
   what it adds. A read or a link of the base type holds each entry as its own class, so
   `instanceof PhotoGallery` or `is PhotoGallery` tells them apart.

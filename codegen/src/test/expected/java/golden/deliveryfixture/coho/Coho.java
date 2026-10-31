@@ -28,11 +28,12 @@ public final class Coho
         Map.entry("article", (EntryFactory) Article::new),
         Map.entry("figure", (EntryFactory) Figure::new),
         Map.entry("notice", (EntryFactory) Notice::new),
-        Map.entry("citation", (EntryFactory) Citation::new)
+        Map.entry("citation", (EntryFactory) Citation::new),
+        Map.entry("step", (EntryFactory) Step::new)
     );
 
     /** Where these types came from, for reporting which release a build was made from. */
-    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:7cb3daf41cbe9c34e84797f25ff4f3b681d18d3e3281c221b28c51b3dd8a24f2", "1.4");
+    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:4e05e6369445f4d9717ad1fe6a3520df5c49c09a11c2bba9f2e6aa816f58b000", "1.5");
 
     /** The types an entry can be: every content type that is not abstract. */
     public static final List<String> CONTENT_TYPES = List.of("article", "figure", "notice");

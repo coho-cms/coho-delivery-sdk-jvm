@@ -23,4 +23,13 @@ class Figure(entry: EntryReader) : EntryBase(entry)
 
     /** sources */
     val sources: List<Citation> = entry.items("sources", Citation::class.java)
+
+    /** steps */
+    val steps: List<Step> = entry.items("steps", Step::class.java)
+
+    /** keywords. Null where the locale has no translation, and empty where it has none on purpose. */
+    val keywords: List<String>? = entry.textsOrNull("keywords")
+
+    /** sizes */
+    val sizes: List<Long> = entry.integers("sizes")
 }

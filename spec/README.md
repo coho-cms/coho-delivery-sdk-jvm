@@ -11,12 +11,15 @@ type-model/
     ├── assets.json          asset fields, with number, json and a repeater
     ├── repeaters.json       component types, and repeaters that hold them
     ├── inheritance.json     types that extend others, abstract ones, and links to a base type
-    └── traits.json          groups of fields that types take
+    ├── traits.json          groups of fields that types take
+    └── lists.json           lists of text, numbers, and date-times, localized and not
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
 ```
 
 Nothing here is edited by hand. Each file is produced by the Coho server's own code and copied here, so a fixture is exactly what a generator will receive.
+
+Copied from coho-sdk-spec's working tree ahead of **v2026.1.0a7**, not yet tagged (2026-10-31): the type model at 1.5, with lists, the `lists` fixture, and localized component fields, and delivery 2.1.0's recordings, among them `entry-with-assets`, `entry-with-repeater`, and `entry-with-localized-items`, whose `figure` type and `citation` and `step` components are in the delivery fixture. Copy a tagged release and name it here.
 
 ## The type model
 
@@ -32,6 +35,8 @@ A language-neutral description of one branch's or tag's content types. Code gene
 - **Repeaters hold component types** (since 1.2). `components` is keyed by slug, the same shape as `types`, and every slug in a repeater's `of` is a key of it. Each item carries `_id`, its stable identity, and `_type`, the component's slug: discriminate on `_type`. Content can hold an item of a component added after the file was produced. Leave such an item out of the list, and report it, rather than type it as something it is not; the TypeScript runtime does this from the generated `shape`. An empty `of` means no component type is on this branch or tag; generate items as untyped objects with `_id`. Before 1.2 there is no `components`, and items are untyped.
 - **Types extend types** (since 1.3). A type with a parent names it in `extends`, a key of the same map (`types` or `components`); `abstract: true` marks a type no entry is of itself, only its descendants. A type's `fields` already include everything it inherits, so a generator that ignores `extends` stays correct. A field it reaches exactly as its parent has it carries `inherited: true`, for a language that declares it on the parent alone; one the type tightens (a narrower `values`, `of` or `max`, or made required) does not. **Delivery lists a type's descendants with it**: `?type=page` returns every service page and landing page too, each with its own `_type`, so a read or a link of a base type should be typed as any of the concrete types in its family. A reference or repeater whose `of` names a base type holds its descendants too.
 - **Types take traits** (since 1.4). A trait is a named group of fields, in the top-level `traits` map; it is never a type, so no entry is of one and no `of` names one. A type lists every trait it has, its ancestors' first, in `traits`, and already has their fields in its own `fields`, each marked `trait` and as the type has it, which may be tighter than the trait's own. A generator that ignores traits stays correct. One that reads them may declare each trait once, `interface Seo`, and declare that every type with it has it, so code written against a trait accepts any entry that has one.
+- **Lists are their own kind** (since 1.5). A field of `kind: list` is an array of plain values, each of the kind in `item`: `text`, `integer`, `number`, or `datetime`. Type it as a list of that kind (`readonly string[]` in TypeScript). `min` and `max` count its values. A localized list is delivered as the requested locale's array, and an empty array is a value, "none in this locale", where an untranslated locale leaves the field out, so `presence` still decides optionality. **Keep the two apart in generated code**: a missing localized list is absent (`undefined`, `None`, `null`), never an empty list, so "not translated" and "none here" read differently. A missing list that is not localized may read as empty, as a list of links does. A list is never sortable. References and assets keep `many`: a list is a kind of its own so that a generator that predates it types the field untyped, never wrongly as one value.
+- **Component fields can be localized.** Delivery projects a localized field inside a repeater's item exactly as at the top level: one locale's value, absent where that locale has none. Such a field is `maybe`, as any localized field is, and needs nothing new from a generator.
 - **Unknown field kinds are untyped.** If `kind` is one you do not know, emit the field as untyped and print a warning. Never fail.
 - **Print `warnings`.** When present, each one names a type and field that need attention.
 - **Fields hidden from the API are already gone.** Do not look for them.
@@ -56,7 +61,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 - `path` is relative to the project's base URL, `…/v1/projects/{project}`. Compare the query as a set: an SDK may send the same parameters in another order.
 - `auth` is `key` for the project's delivery key, `none` for no `Authorization` header, and `other-key` for a valid key that grants a different project.
 - `etag` says whether the response carried one. The value is not recorded, because it changes every time the content is rebuilt; a replaying SDK can make up its own.
-- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries. A third, `figure`, has asset fields: `image` (images only), `poster` and a `gallery` list. `figure-1` links a JPEG with a focal point, an SVG, a PDF, and an asset that does not exist, in `poster` and in `gallery`. `figure` also has `sources`, a repeater of the component type `citation`, and `figure-2` holds two citations.
+- The content is a type, `article`, with a localized `title`, a `body`, an integer `rank`, and a `related` reference. Three entries, `chain-1` to `chain-3`, link in a loop, and `chain-2` also links to an entry that does not exist. Four more, `entry-1` to `entry-3` and `entry-fr`, carry translated titles. A second type, `notice`, declares an integer `priority` and a text `message`, and has no entries. A third, `figure`, has asset fields: `image` (images only), `poster` and a `gallery` list. `figure-1` links a JPEG with a focal point, an SVG, a PDF, and an asset that does not exist, in `poster` and in `gallery`. `figure` also has `sources`, a repeater of the component type `citation`, and `figure-2` holds two citations. And `figure` has `steps`, a repeater of the component `step`, whose `label` is localized, `keywords`, a localized list of text, and `sizes`, a list of integers: `figure-3` has two steps, one labelled in `en-US` and `de-DE`, the other in `en-US` and `it-IT`, keywords in `en-US` and none on purpose in `de-DE`, and sizes `[3, 5]`.
 
 | Recording | What it shows |
 |---|---|
@@ -68,6 +73,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | `entries-empty-type` | A type with no entries, ordered by its declared field: an empty page, not a refusal |
 | `entry-with-assets` | Assets embedded (delivery 2.1.0): an image with `imageUrl`, an SVG and a PDF without one, a missing asset as `null` in `poster` and left out of `gallery`, and the `warnings` that name it. The project id in URLs is `{project}` |
 | `entry-with-repeater` | Repeater items as stored: each with its `_id` and `_type`, the second's `_type` filled in by the server on write |
+| `entry-with-localized-items` | `figure-3` in `de-DE`: the first step's label projected to German and the second's left out, an empty `keywords` list, and `sizes` |
 | `entry-not-found`, `ref-not-found`, `invalid-query`, `key-required`, `project-not-found` | The refusals |
 
 ## Type model fixtures
@@ -75,10 +81,11 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | Fixture | Covers |
 |---|---|
 | `cli-next-blog` | text, longText (plain and markdown), choice, multichoice, datetime, integer, boolean, localized fields, single and many references, and a type that references itself |
-| `delivery-fixture` | The types of the delivery recordings' content, `article`, `notice` and `figure`, and the component `citation`, so a generator's output can be run against the recordings |
+| `delivery-fixture` | The types of the delivery recordings' content, `article`, `notice` and `figure`, and the components `citation` and `step`, so a generator's output can be run against the recordings |
 | `assets` | asset fields (single and many, image-only and any file), `number`, `json`, and a repeater whose components are not on the tag |
 | `repeaters` | component types (1.2): a single-component repeater of `citation`, and a required repeater holding two components and one not on the tag |
 | `traits` | traits (1.4): `seo` taken by `page` and inherited by `article`, which tightens its meta title, and `publishing` and `socialCard` taken by `article`, `socialCard` by an unrelated `person` too |
+| `lists` | lists (1.5): a localized list of text with a `max`, lists of numbers and of date-times, one required with a `min`, and lists inside a component, one of them localized |
 | `inheritance` | type inheritance (1.3): an abstract `page`, `servicePage` and `landingPage` extending it, `premiumService` extending `servicePage` with a narrower choice, a `menu` linking to `page` and to `servicePage`, and an abstract component `block` with two components extending it, held by a repeater of `block` |
 
 ## License

@@ -110,6 +110,7 @@ class TypeModel(
                             localized = field.path("localized").asBoolean(false),
                             sortable = field.path("sortable").asBoolean(false),
                             many = field.path("many").asBoolean(false),
+                            item = field.get("item")?.asText(),
                             accept = field.path("accept").map { it.asText() },
                             of = field.path("of").map { it.asText() },
                             values = field.path("values").map { it.asText() },
@@ -138,6 +139,7 @@ class ContentType(
  * One field.
  *
  * @property kind Open: a kind added after this generator was written is read as JSON.
+ * @property item Since 1.5: on a `list`, the kind of each of its values.
  * @property always Whether delivery always includes the field: the one rule for optionality.
  * @property inherited The field reaches the type exactly as its parent has it.
  * @property trait The trait the field comes from.
@@ -150,6 +152,7 @@ class Field(
     val localized: Boolean,
     val sortable: Boolean,
     val many: Boolean,
+    val item: String?,
     val accept: List<String>,
     val of: List<String>,
     val values: List<String>,

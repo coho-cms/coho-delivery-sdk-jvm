@@ -21,12 +21,21 @@ class Citation(item: EntryReader) : ItemBase(item)
     val year: Long = item.requiredInteger("year")
 }
 
+class Step(item: EntryReader) : ItemBase(item)
+{
+    val label: String? = item.text("label")
+    val minutes: Long? = item.integer("minutes")
+}
+
 class Figure(entry: EntryReader) : EntryBase(entry)
 {
     val image: Asset? = entry.asset("image")
     val poster: Asset? = entry.asset("poster")
     val gallery: List<Asset> = entry.assets("gallery")
     val sources: List<Citation> = entry.items("sources", Citation::class.java)
+    val steps: List<Step> = entry.items("steps", Step::class.java)
+    val keywords: List<String>? = entry.textsOrNull("keywords")
+    val sizes: List<Long> = entry.integers("sizes")
 }
 
 class HydrationTest
@@ -35,6 +44,7 @@ class HydrationTest
         "article" to EntryFactory(::Article),
         "figure" to EntryFactory(::Figure),
         "citation" to EntryFactory(::Citation),
+        "step" to EntryFactory(::Step),
     )
 
     private val ids = listOf("c1", "c2", "c3", "ff").map { "00000000-0000-7000-8000-0000000000$it" }
@@ -129,6 +139,52 @@ class HydrationTest
         val (roots, issues) = hydrated(graph("entry-with-repeater"), factories - "citation")
         assertEquals(emptyList(), assertIs<Figure>(roots.single()).sources)
         assertEquals(setOf("unknown-item"), issues.map { it.kind }.toSet())
+    }
+
+    @Test
+    fun `an item's localized field is its locale's value, or null where it has none`()
+    {
+        val (roots, issues) = hydrated(graph("entry-with-localized-items"))
+
+        val figure = assertIs<Figure>(roots.single())
+        assertEquals("de-DE", figure.locale)
+        assertEquals(listOf("Messen", null), figure.steps.map { it.label })
+        assertEquals(listOf(5L, 2L), figure.steps.map { it.minutes })
+        assertTrue(issues.isEmpty())
+    }
+
+    @Test
+    fun `a list is its values, never a link, and a localized one is empty where the locale has none and null where it has no translation`()
+    {
+        val figure = assertIs<Figure>(hydrated(graph("entry-with-localized-items")).first.single())
+        assertEquals(emptyList(), figure.keywords)
+        assertEquals(listOf(3L, 5L), figure.sizes)
+
+        val untranslated = hydrated(
+            edited("entry-with-localized-items", "00000000-0000-7000-8000-0000000000f3")
+            { fields ->
+                fields.remove("keywords")
+                fields.remove("sizes")
+            },
+        )
+        val missing = assertIs<Figure>(untranslated.first.single())
+        assertNull(missing.keywords)
+        // Not localized: missing, it is empty, as a list of references is.
+        assertEquals(emptyList(), missing.sizes)
+        assertTrue(untranslated.second.isEmpty())
+
+        // An entry's id in a list of text is text, and a value of another kind is left out.
+        val (roots, issues) = hydrated(
+            edited("entry-with-localized-items", "00000000-0000-7000-8000-0000000000f3")
+            { fields ->
+                fields.putArray("keywords").add(ids[0]).add(7)
+                fields.putArray("sizes").add(3).add("five")
+            },
+        )
+        val edited = assertIs<Figure>(roots.single())
+        assertEquals(listOf(ids[0]), edited.keywords)
+        assertEquals(listOf(3L), edited.sizes)
+        assertEquals(listOf("invalid-value keywords", "invalid-value sizes"), issues.map { "${it.kind} ${it.field}" })
     }
 
     @Test
