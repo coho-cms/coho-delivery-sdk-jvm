@@ -45,7 +45,7 @@ class GenerateTest
     }
 
     private fun model(fields: String, slug: String = "story", immutable: Boolean = true) = TypeModel.parse(
-        """{"irVersion":"1.5","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
+        """{"irVersion":"1.6","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
             "types":{"$slug":{"slug":"$slug","name":"Story","version":"1","fields":[$fields]}}}""",
         "test",
     )
@@ -128,6 +128,22 @@ class GenerateTest
         assertContains(contents(java, "Talk.java"), "public @Nullable List<Long> getTracks()")
         assertContains(contents(java, "Talk.java"), "public List<String> getSpeakers()")
         assertTrue(java.warnings.none { "does not know" in it })
+    }
+
+    @Test
+    fun `a component holds a repeater as a type does, and one that holds itself is a recursive class`()
+    {
+        val fixture = File(spec, "type-model/fixtures/nested.json")
+        val kotlin = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.KOTLIN)
+        assertContains(contents(kotlin, "Section.kt"), """val cards: List<Card> = entry.items("cards", Card::class.java)""")
+        assertContains(contents(kotlin, "MenuItem.kt"), """val children: List<MenuItem> = entry.items("children", MenuItem::class.java)""")
+        assertContains(contents(kotlin, "LocaleMenuItem.kt"), """val children: List<LocaleMenuItem> = entry.items("children", LocaleMenuItem::class.java)""")
+        assertEquals(emptyList(), kotlin.warnings)
+
+        val java = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.JAVA)
+        assertContains(contents(java, "MenuItem.java"), "this.children = entry.items(\"children\", MenuItem.class);")
+        assertContains(contents(java, "MenuItem.java"), "public List<MenuItem> getChildren()")
+        assertEquals(emptyList(), java.warnings)
     }
 
     @Test

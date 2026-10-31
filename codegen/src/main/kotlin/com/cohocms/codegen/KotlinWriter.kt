@@ -52,7 +52,9 @@ internal class KotlinWriter(private val plan: Plan, private val packageName: Str
             }
             "repeater" ->
             {
-                // The runtime leaves out an item of any other component, so the list never holds one.
+                // The runtime leaves out an item of any other component, at every level, so the list
+                // never holds one. A component's repeater is typed as a content type's is, and one
+                // that holds its own component is a class whose list holds itself (since 1.6).
                 val component = plan.target(field.of, "ItemBase", "")
                 if (component.isEmpty()) Shape("List<RepeaterItem>", "entry.repeaterItems(${literal(field.id)})", true)
                 else Shape("List<$component>", "entry.items(${literal(field.id)}, $component::class.java)", true)

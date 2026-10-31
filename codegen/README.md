@@ -57,8 +57,11 @@ The generated code is in the package's `coho` subpackage, `com.acme.content.coho
   list it is left out.
 - **A repeater holds typed items**: each component type is a class deriving from `ItemBase`,
   `Citation`, and a repeater is a `List<Citation>`, or a `List<ItemBase>` when it holds several
-  components. An item of a component added after the code was generated is left out, and
-  reported.
+  components. A component can hold repeaters too, typed as a content type's are, so items
+  hold items, and one can hold itself: a `MenuItem` whose `children` are a `List<MenuItem>`.
+  Since type model 1.6. An item of a component added after the code was generated is left
+  out, and reported, at every level, so a nested item is never typed as something it is not;
+  its issue names the repeater by its path in the entry, `sections/0/points/0/children`.
 - **A list holds plain values**: `List<String>`, `List<Long>`, `List<Double>`, or
   `List<OffsetDateTime>`, by the kind of its items. A localized list is nullable: null where
   the requested locale has no translation, and empty where it has none on purpose, so the two

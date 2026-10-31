@@ -138,8 +138,11 @@ data class ListOptions<O : SortOrder> @JvmOverloads constructor(
  * becomes required; it takes its type's empty value. `unexpected-value`: one link where the
  * type says many, or the other way round. `unlisted-link`: a link delivery neither resolved
  * nor reported. `unknown-item`: a repeater item of a component the code has no type for, left
- * out. `invalid-value`: a value of the wrong kind, such as text where a number belongs, read
- * as null or its type's empty value.
+ * out, at any depth. `invalid-value`: a value of the wrong kind, such as text where a number
+ * belongs, read as null or its type's empty value.
+ *
+ * @property field Where in the entry: a field's id, or inside a repeater's items its path,
+ * `sections/0/points/1/text`, or for an `unknown-item` the repeater's, `sections/0/points`.
  */
 data class Issue(
     val kind: String,

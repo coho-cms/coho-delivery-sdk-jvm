@@ -19,6 +19,7 @@ tasks.test()
 {
     systemProperty("coho.spec", rootProject.file("spec").absolutePath)
     systemProperty("coho.expected", file("src/test/expected").absolutePath)
+    inputs.dir("src/test/expected").withPropertyName("expected").withPathSensitivity(PathSensitivity.RELATIVE)
     // Rewrite the expected output instead of comparing with it: ./gradlew :codegen:test -Pcoho.rewrite
     systemProperty("coho.rewrite", providers.gradleProperty("coho.rewrite").isPresent.toString())
 }

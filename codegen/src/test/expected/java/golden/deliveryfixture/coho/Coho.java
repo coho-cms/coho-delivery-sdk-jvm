@@ -28,20 +28,25 @@ public final class Coho
         Map.entry("article", (EntryFactory) Article::new),
         Map.entry("figure", (EntryFactory) Figure::new),
         Map.entry("notice", (EntryFactory) Notice::new),
+        Map.entry("outline", (EntryFactory) Outline::new),
         Map.entry("citation", (EntryFactory) Citation::new),
+        Map.entry("note", (EntryFactory) Note::new),
+        Map.entry("outlineSection", (EntryFactory) OutlineSection::new),
+        Map.entry("point", (EntryFactory) Point::new),
         Map.entry("step", (EntryFactory) Step::new)
     );
 
     /** Where these types came from, for reporting which release a build was made from. */
-    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:4e05e6369445f4d9717ad1fe6a3520df5c49c09a11c2bba9f2e6aa816f58b000", "1.5");
+    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:71b7fd997397b6f7c15f6dff7d579d6679a395e8dc66f6ed0b19b7c38b302743", "1.6");
 
     /** The types an entry can be: every content type that is not abstract. */
-    public static final List<String> CONTENT_TYPES = List.of("article", "figure", "notice");
+    public static final List<String> CONTENT_TYPES = List.of("article", "figure", "notice", "outline");
 
     private final ContentClient content;
     private final TypeReader<Article, Article.SortBy> article;
     private final TypeReader<Figure, NoOrder> figure;
     private final TypeReader<Notice, Notice.SortBy> notice;
+    private final TypeReader<Outline, NoOrder> outline;
 
     public Coho(ContentConfig config)
     {
@@ -54,6 +59,7 @@ public final class Coho
         this.article = content.type("article", Article.class);
         this.figure = content.type("figure", Figure.class);
         this.notice = content.type("notice", Notice.class);
+        this.outline = content.type("outline", Outline.class);
     }
 
     /** The untyped reads underneath, for anything the typed ones do not cover. */
@@ -78,6 +84,12 @@ public final class Coho
     public TypeReader<Notice, Notice.SortBy> notice()
     {
         return notice;
+    }
+
+    /** Outline */
+    public TypeReader<Outline, NoOrder> outline()
+    {
+        return outline;
     }
 
     /** The entry with this slug, whatever its type, or null. */

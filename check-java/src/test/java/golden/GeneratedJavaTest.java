@@ -11,6 +11,7 @@ import com.cohocms.delivery.ContentConfig;
 import com.cohocms.delivery.EntryBase;
 import com.cohocms.delivery.EntryGraph;
 import com.cohocms.delivery.HydrationKt;
+import com.cohocms.delivery.Issue;
 import com.cohocms.delivery.ImageOptions;
 import com.cohocms.delivery.Linked;
 import com.cohocms.delivery.ListOptions;
@@ -20,12 +21,18 @@ import com.cohocms.delivery.ReleasedConfig;
 import com.cohocms.delivery.Replay;
 import com.cohocms.delivery.Spec;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import golden.deliveryfixture.coho.Article;
 import golden.deliveryfixture.coho.Citation;
 import golden.deliveryfixture.coho.Coho;
 import golden.deliveryfixture.coho.Figure;
+import golden.deliveryfixture.coho.Note;
+import golden.deliveryfixture.coho.Outline;
+import golden.deliveryfixture.coho.OutlineSection;
+import golden.deliveryfixture.coho.Point;
 import golden.deliveryfixture.coho.Step;
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -112,6 +119,45 @@ class GeneratedJavaTest
         Figure figure = assertInstanceOf(Figure.class, roots.get(0));
         assertNull(figure.getKeywords());
         assertEquals(List.of(), figure.getSizes());
+    }
+
+    @Test
+    void itemsHoldItemsTypedAtEveryLevelInTheRequestedLocale()
+    {
+        Outline outline = coho().outline().byId("00000000-0000-7000-8000-0000000000b1", ReadOptions.DEFAULT.withLocale("en-US"));
+        assertNotNull(outline);
+
+        OutlineSection section = outline.getSections().get(0);
+        assertEquals("00000000-0000-7000-8000-0000000000b2", section.getId());
+        assertEquals("outlineSection", section.getType());
+        assertEquals("Plan", section.getHeading());
+        Point first = section.getPoints().get(0);
+        Point second = first.getChildren().get(0);
+        Point third = second.getChildren().get(0);
+        assertEquals("Survey", first.getText());
+        assertEquals("Measure", second.getText());
+        // Only in pt-BR, so left out in en-US.
+        assertNull(third.getText());
+        assertEquals("00000000-0000-7000-8000-0000000000b5", third.getId());
+        assertEquals("point", third.getType());
+        assertEquals(List.of(), third.getChildren());
+        List<Note> notes = section.getNotes();
+        assertEquals(List.of("Bring cones"), notes.stream().map(Note::getText).toList());
+    }
+
+    @Test
+    void aNestedItemOfAComponentTheCodeWasNotGeneratedWithIsLeftOutAndReportedWhereItIs()
+    {
+        JsonNode json = Spec.INSTANCE.body("entry-with-nested-items").deepCopy();
+        ((ArrayNode) json.at("/entries/00000000-0000-7000-8000-0000000000b1/fields/sections/0/points/0/children"))
+            .addObject().put("_id", "00000000-0000-7000-8000-0000000000b9").put("_type", "callout");
+
+        List<Issue> issues = new ArrayList<>();
+        List<EntryBase> roots = HydrationKt.hydrate(EntryGraph.of(json), Coho.FACTORIES, issues::add);
+        Outline outline = assertInstanceOf(Outline.class, roots.get(0));
+        List<Point> children = outline.getSections().get(0).getPoints().get(0).getChildren();
+        assertEquals(List.of("Measure"), children.stream().map(Point::getText).toList());
+        assertEquals(List.of("unknown-item sections/0/points/0/children"), issues.stream().map(issue -> issue.getKind() + " " + issue.getField()).toList());
     }
 
     @Test

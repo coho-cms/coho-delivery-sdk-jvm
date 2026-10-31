@@ -32,6 +32,9 @@ class Coho @JvmOverloads constructor(config: ContentConfig, options: ClientOptio
     /** Notice */
     val notice: TypeReader<Notice, Notice.SortBy> = content.type("notice", Notice::class.java)
 
+    /** Outline */
+    val outline: TypeReader<Outline, NoOrder> = content.type("outline", Outline::class.java)
+
     /** The entry with this slug, whatever its type, or null. */
     @JvmOverloads
     fun bySlug(slug: String, options: ReadOptions = ReadOptions.DEFAULT): EntryBase? = content.bySlug(slug, options)
@@ -60,16 +63,20 @@ class Coho @JvmOverloads constructor(config: ContentConfig, options: ClientOptio
             "article" to EntryFactory(::Article),
             "figure" to EntryFactory(::Figure),
             "notice" to EntryFactory(::Notice),
+            "outline" to EntryFactory(::Outline),
             "citation" to EntryFactory(::Citation),
+            "note" to EntryFactory(::Note),
+            "outlineSection" to EntryFactory(::OutlineSection),
+            "point" to EntryFactory(::Point),
             "step" to EntryFactory(::Step),
         )
 
         /** Where these types came from, for reporting which release a build was made from. */
         @JvmField
-        val SOURCE = Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:4e05e6369445f4d9717ad1fe6a3520df5c49c09a11c2bba9f2e6aa816f58b000", "1.5")
+        val SOURCE = Source("01920000-0000-7000-8000-00000000c0b1", "v0.0.1", true, "sha256:71b7fd997397b6f7c15f6dff7d579d6679a395e8dc66f6ed0b19b7c38b302743", "1.6")
 
         /** The types an entry can be: every content type that is not abstract. */
         @JvmField
-        val CONTENT_TYPES: List<String> = listOf("article", "figure", "notice")
+        val CONTENT_TYPES: List<String> = listOf("article", "figure", "notice", "outline")
     }
 }

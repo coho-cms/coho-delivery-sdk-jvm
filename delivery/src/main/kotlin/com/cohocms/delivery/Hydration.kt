@@ -95,18 +95,24 @@ internal class Hydration(
             }
         }
 
-        fun item(from: Entry, field: String, index: Int, node: ObjectNode): Any?
+        /**
+         * One repeater item, built as its component, or null for one this code has no type for.
+         * [path] is where the item is in its entry, `sections/0/points/1`, at any depth: an item's
+         * own repeaters are read through the reader it is built with, so they are filtered and
+         * hydrated here too, and the data, never the model, bounds how deep that goes.
+         */
+        fun item(from: Entry, path: String, node: ObjectNode): Any?
         {
             val component = node.path("_type").asText("")
             val factory = factories[component] ?: return null
-            val reader = EntryReader(this, from, node.path("_id").asText(""), component, "", null, node, "$field/$index/")
+            val reader = EntryReader(this, from, node.path("_id").asText(""), component, "", null, node, "$path/")
             return try
             {
                 factory.create(reader)
             }
             catch (error: RuntimeException)
             {
-                report("invalid-value", from, "$field/$index", "has an item in '$field' that could not be read, and is left out: $error")
+                report("invalid-value", from, path, "has an item at '$path' that could not be read, and is left out: $error")
                 null
             }
         }
@@ -321,7 +327,9 @@ class EntryReader internal constructor(
     /**
      * A repeater's items, each built as its component type. An item of a component this code
      * has no type for, or one that is not a [type], is left out and reported, so it is never
-     * passed off as something it is not.
+     * passed off as something it is not. The same holds inside items, at every level, since an
+     * item's repeaters are read here too: one left out three levels down is reported at its
+     * repeater's full path, `sections/0/points/0/children`, and its siblings stay.
      */
     fun <T : Any> items(field: String, type: Class<T>): List<T>
     {
@@ -333,7 +341,7 @@ class EntryReader internal constructor(
         }
         return node.mapIndexedNotNull()
         { index, item ->
-            val built = (item as? ObjectNode)?.let { pass.item(owner, field, index, it) }
+            val built = (item as? ObjectNode)?.let { pass.item(owner, "$prefix$field/$index", it) }
             if (built != null && type.isInstance(built))
             {
                 type.cast(built)
@@ -341,7 +349,7 @@ class EntryReader internal constructor(
             else
             {
                 val component = item.path("_type").asText("")
-                report("unknown-item", field, "has an item of '$component' in '$field', which this code has no type for; it is left out")
+                report("unknown-item", field, "has an item of '$component' in '$prefix$field', which this code has no type for; it is left out")
                 null
             }
         }
@@ -351,9 +359,12 @@ class EntryReader internal constructor(
     fun repeaterItems(field: String): List<RepeaterItem>
     {
         val node = value(field) ?: return emptyList()
-        return node.filterIsInstance<ObjectNode>().map()
-        { item ->
-            RepeaterItem(EntryReader(pass, owner, item.path("_id").asText(""), item.path("_type").asText(""), "", null, item, "$prefix$field/"))
+        return node.mapIndexedNotNull()
+        { index, item ->
+            (item as? ObjectNode)?.let()
+            {
+                RepeaterItem(EntryReader(pass, owner, it.path("_id").asText(""), it.path("_type").asText(""), "", null, it, "$prefix$field/$index/"))
+            }
         }
     }
 

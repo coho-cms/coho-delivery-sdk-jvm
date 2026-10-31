@@ -130,7 +130,11 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
     /** The concrete types an entry can be. */
     val concrete = model.types.values.filter { !it.abstract }.sortedBy { it.slug }
 
-    /** The class a reference to [targets] holds: their own, when one; any entry, when several or none. */
+    /**
+     * The class a reference to [targets], or a repeater of them, holds: their own, when one; any
+     * entry or item, when several or none. It reads `of` and never follows it, so a component
+     * that holds itself, at any depth, is no loop.
+     */
     fun target(targets: List<String>, base: String, untyped: String): String
     {
         val known = targets.filter { it in classes && it !in model.traits }.distinct()

@@ -5,6 +5,12 @@ plugins {
 
 subprojects()
 {
+    // The spec's fixtures and recordings are read by path, so a fresh copy of them reruns the tests.
+    tasks.withType<Test>().configureEach()
+    {
+        inputs.dir(rootProject.file("spec")).withPropertyName("spec").withPathSensitivity(PathSensitivity.RELATIVE)
+    }
+
     // Built with JDK 21, for Java 17 and later: what Spring Boot 4 and Ktor 3 run on.
     plugins.withId("org.jetbrains.kotlin.jvm")
     {

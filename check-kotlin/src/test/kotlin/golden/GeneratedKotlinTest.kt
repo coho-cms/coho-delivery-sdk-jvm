@@ -4,6 +4,7 @@ import com.cohocms.delivery.ClientOptions
 import com.cohocms.delivery.ContentConfig
 import com.cohocms.delivery.EntryGraph
 import com.cohocms.delivery.EntryFactory
+import com.cohocms.delivery.Issue
 import com.cohocms.delivery.ImageOptions
 import com.cohocms.delivery.Linked
 import com.cohocms.delivery.ListOptions
@@ -17,6 +18,9 @@ import golden.deliveryfixture.coho.Article
 import golden.deliveryfixture.coho.Citation
 import golden.deliveryfixture.coho.Coho
 import golden.deliveryfixture.coho.Figure
+import golden.deliveryfixture.coho.Note
+import golden.deliveryfixture.coho.OutlineSection
+import golden.deliveryfixture.coho.Point
 import golden.deliveryfixture.coho.Step
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -90,6 +94,43 @@ class GeneratedKotlinTest
         val figure = assertIs<Figure>(hydrate(EntryGraph.of(json), Coho.FACTORIES) { }.single())
         assertNull(figure.keywords)
         assertEquals(emptyList(), figure.sizes)
+    }
+
+    @Test
+    fun `items hold items, typed at every level, in the requested locale`()
+    {
+        val outline = coho().outline.byId("00000000-0000-7000-8000-0000000000b1", ReadOptions(locale = "en-US"))!!
+
+        val section: OutlineSection = outline.sections.single()
+        assertEquals("00000000-0000-7000-8000-0000000000b2" to "outlineSection", section.id to section.type)
+        assertEquals("Plan", section.heading)
+        val first: Point = section.points.single()
+        val second: Point = first.children.single()
+        val third: Point = second.children.single()
+        // Only in pt-BR, so left out in en-US.
+        assertEquals(listOf("Survey", "Measure", null), listOf(first.text, second.text, third.text))
+        assertEquals(
+            listOf("00000000-0000-7000-8000-0000000000b3", "00000000-0000-7000-8000-0000000000b4", "00000000-0000-7000-8000-0000000000b5"),
+            listOf(first.id, second.id, third.id),
+        )
+        assertTrue(listOf(first, second, third).all { it.type == "point" })
+        assertEquals(emptyList(), third.children)
+        val notes: List<Note> = section.notes
+        assertEquals(listOf("Bring cones"), notes.map { it.text })
+    }
+
+    @Test
+    fun `a nested item of a component the code was not generated with is left out, and reported where it is`()
+    {
+        val json = Spec.body("entry-with-nested-items").deepCopy<com.fasterxml.jackson.databind.JsonNode>()
+        val children = json.at("/entries/00000000-0000-7000-8000-0000000000b1/fields/sections/0/points/0/children") as com.fasterxml.jackson.databind.node.ArrayNode
+        children.addObject().put("_id", "00000000-0000-7000-8000-0000000000b9").put("_type", "callout")
+
+        val issues = mutableListOf<Issue>()
+        val outline = assertIs<golden.deliveryfixture.coho.Outline>(hydrate(EntryGraph.of(json), Coho.FACTORIES) { issues += it }.single())
+        val first = outline.sections.single().points.single()
+        assertEquals(listOf("Measure"), first.children.map { it.text })
+        assertEquals(listOf("unknown-item sections/0/points/0/children"), issues.map { "${it.kind} ${it.field}" })
     }
 
     @Test

@@ -64,7 +64,7 @@ class Coho @JvmOverloads constructor(config: ContentConfig, options: ClientOptio
 
         /** Where these types came from, for reporting which release a build was made from. */
         @JvmField
-        val SOURCE = Source("01920000-0000-7000-8000-00000000c0b5", "v0.0.1", true, "sha256:37bc33c52072ab5cc60ef450a7800f211f2390eaadfacf32f6544b2c3abe182c", "1.5")
+        val SOURCE = Source("01920000-0000-7000-8000-00000000c0b5", "v0.0.1", true, "sha256:37bc33c52072ab5cc60ef450a7800f211f2390eaadfacf32f6544b2c3abe182c", "1.6")
 
         /** The types an entry can be: every content type that is not abstract. */
         @JvmField

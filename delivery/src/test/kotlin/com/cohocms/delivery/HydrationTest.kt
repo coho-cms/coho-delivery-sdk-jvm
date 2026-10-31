@@ -2,6 +2,7 @@ package com.cohocms.delivery
 
 import java.util.function.Function
 import kotlin.test.Test
+import kotlin.test.assertContains
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
@@ -38,14 +39,44 @@ class Figure(entry: EntryReader) : EntryBase(entry)
     val sizes: List<Long> = entry.integers("sizes")
 }
 
+class Outline(entry: EntryReader) : EntryBase(entry)
+{
+    val sections: List<OutlineSection> = entry.items("sections", OutlineSection::class.java)
+}
+
+class OutlineSection(item: EntryReader) : ItemBase(item)
+{
+    val heading: String? = item.text("heading")
+    val points: List<Point> = item.items("points", Point::class.java)
+    val notes: List<Note> = item.items("notes", Note::class.java)
+}
+
+/** A component that holds itself. */
+class Point(item: EntryReader) : ItemBase(item)
+{
+    val text: String? = item.text("text")
+    val children: List<Point> = item.items("children", Point::class.java)
+}
+
+class Note(item: EntryReader) : ItemBase(item)
+{
+    val text: String? = item.text("text")
+}
+
 class HydrationTest
 {
     private val factories = mapOf(
         "article" to EntryFactory(::Article),
         "figure" to EntryFactory(::Figure),
+        "outline" to EntryFactory(::Outline),
         "citation" to EntryFactory(::Citation),
+        "note" to EntryFactory(::Note),
+        "outlineSection" to EntryFactory(::OutlineSection),
+        "point" to EntryFactory(::Point),
         "step" to EntryFactory(::Step),
     )
+
+    private val outline = "00000000-0000-7000-8000-0000000000b1"
 
     private val ids = listOf("c1", "c2", "c3", "ff").map { "00000000-0000-7000-8000-0000000000$it" }
 
@@ -185,6 +216,69 @@ class HydrationTest
         assertEquals(listOf(ids[0]), edited.keywords)
         assertEquals(listOf(3L), edited.sizes)
         assertEquals(listOf("invalid-value keywords", "invalid-value sizes"), issues.map { "${it.kind} ${it.field}" })
+    }
+
+    @Test
+    fun `items hold items, built as their components at every level`()
+    {
+        val (roots, issues) = hydrated(graph("entry-with-nested-items"))
+
+        val section = assertIs<Outline>(roots.single()).sections.single()
+        assertEquals("Plan", section.heading)
+        val first = section.points.single()
+        val second = first.children.single()
+        val third = second.children.single()
+        assertEquals(listOf("Survey", "Measure", null), listOf(first.text, second.text, third.text))
+        assertEquals(emptyList(), third.children)
+        assertEquals(listOf("Bring cones"), section.notes.map { it.text })
+        assertEquals("00000000-0000-7000-8000-0000000000b5" to "point", third.id to third.type)
+        assertTrue(issues.isEmpty())
+    }
+
+    @Test
+    fun `a nested item of an unknown component is left out where it is, and reported at its path`()
+    {
+        val (roots, issues) = hydrated(
+            edited("entry-with-nested-items", outline)
+            { fields ->
+                val children = fields.path("sections").path(0).path("points").path(0).path("children") as com.fasterxml.jackson.databind.node.ArrayNode
+                children.insertObject(0).put("_id", "00000000-0000-7000-8000-0000000000b9").put("_type", "callout").put("text", "Mind the gap")
+                val deepest = children.path(1).path("children").path(0) as com.fasterxml.jackson.databind.node.ObjectNode
+                deepest.putArray("children").addObject().put("_id", "00000000-0000-7000-8000-0000000000ba").put("_type", "callout")
+            },
+        )
+
+        val first = assertIs<Outline>(roots.single()).sections.single().points.single()
+        // The known sibling survives, with its own children, and the unknown items are gone.
+        assertEquals(listOf("Measure"), first.children.map { it.text })
+        assertEquals(emptyList(), first.children.single().children.single().children)
+        assertEquals(
+            listOf(
+                "unknown-item sections/0/points/0/children",
+                "unknown-item sections/0/points/0/children/1/children/0/children",
+            ),
+            issues.map { "${it.kind} ${it.field}" },
+        )
+        assertContains(issues[0].message, "an item of 'callout' in 'sections/0/points/0/children'")
+
+        // A content type's own repeater still filters as before.
+        val (top, topIssues) = hydrated(graph("entry-with-nested-items"), factories - "outlineSection")
+        assertEquals(emptyList(), assertIs<Outline>(top.single()).sections)
+        assertEquals(listOf("unknown-item sections"), topIssues.map { "${it.kind} ${it.field}" })
+    }
+
+    @Test
+    fun `a value of the wrong kind in a nested item is reported at its full path`()
+    {
+        val (roots, issues) = hydrated(
+            edited("entry-with-nested-items", outline)
+            { fields ->
+                (fields.path("sections").path(0).path("points").path(0).path("children").path(0) as com.fasterxml.jackson.databind.node.ObjectNode).put("text", 7)
+            },
+        )
+
+        assertNull(assertIs<Outline>(roots.single()).sections.single().points.single().children.single().text)
+        assertEquals(listOf("invalid-value sections/0/points/0/children/0/text"), issues.map { "${it.kind} ${it.field}" })
     }
 
     @Test
