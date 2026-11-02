@@ -24,7 +24,7 @@ A JDK, 21 or later. The packages run on Java 17 and later.
 
 That runs everything CI runs:
 
-- `delivery`'s tests, against the spec's recorded responses.
+- `delivery`'s tests, against the spec's recorded responses and webhook signatures.
 - `codegen`'s tests, which compare what it generates for each type model fixture, in both
   languages, with what is committed in `codegen/src/test/expected`.
 - `check-java` and `check-kotlin`, which compile that committed code, with warnings as
@@ -37,8 +37,8 @@ After changing the generator, rewrite the expected code and review the diff:
 ```
 
 `spec/` is a copy of [coho-sdk-spec](https://github.com/coho-cms/coho-sdk-spec): recorded
-delivery responses and type model fixtures, produced by the Coho server. Don't edit it by
-hand. `replay` answers from the recordings, for the tests; it is never published.
+delivery responses, type model fixtures, and webhook signatures, produced by the Coho server.
+Don't edit it by hand. `replay` answers from the recordings, for the tests; it is never published.
 
 Kotlin and Gradle scripts here use Allman braces: an opening brace on its own line, lambdas
 included, which needs a call's parentheses even when empty, `forEach()`. `.editorconfig` says

@@ -135,6 +135,67 @@ A refusal throws `CohoDeliveryException`. Branch on its `code`: `REF_NOT_FOUND`,
 answer that isn't a problem document. A preview adds `UNAUTHENTICATED`, `ACCOUNT_SUSPENDED`,
 `ACCOUNT_CLOSED` and `USER_SUSPENDED`. A missing entry is null, not an exception.
 
+## Receiving webhooks
+
+Coho signs each webhook request as [Standard Webhooks](https://www.standardwebhooks.com)
+does. `Webhooks.verify` checks the signature and the timestamp, and returns the event, typed:
+its `id`, `type`, `createdAt`, `project`, `actor`, and `data`, a `JsonNode`. Pass it the
+body exactly as it arrived, bytes or text, never parsed and serialized again, since the
+signature is over what Coho sent.
+
+In Spring Boot:
+
+```java
+@PostMapping("/hooks/coho")
+ResponseEntity<Void> receive(@RequestBody byte[] body, @RequestHeader Map<String, String> headers)
+{
+    WebhookEvent event;
+    try
+    {
+        event = Webhooks.verify(body, headers, System.getenv("COHO_WEBHOOK_SECRET"));
+    }
+    catch (CohoWebhookException e)
+    {
+        return ResponseEntity.status(401).build();
+    }
+    if (event.getType().equals("environment.promoted"))
+    {
+        site.rebuild();
+    }
+    return ResponseEntity.noContent().build();
+}
+```
+
+In Ktor:
+
+```kotlin
+post("/hooks/coho")
+{
+    val headers = call.request.headers.toMap().mapValues { it.value.first() }
+    val event = try
+    {
+        Webhooks.verify(call.receive<ByteArray>(), headers, System.getenv("COHO_WEBHOOK_SECRET"))
+    }
+    catch (e: CohoWebhookException)
+    {
+        return@post call.respond(HttpStatusCode.Unauthorized)
+    }
+    if (event.type == "environment.promoted") site.rebuild()
+    call.respond(HttpStatusCode.NoContent)
+}
+```
+
+- **A refusal throws `CohoWebhookException`**, whose `reason` is `SIGNATURE`, `TIMESTAMP`, or
+  `HEADERS`. Answer it with a `401`: Coho does not retry one, and an owner can redeliver it
+  once the receiver is fixed.
+- **Header names are matched ignoring case**, so pass the headers as your framework gives them.
+- **While a secret is being rotated**, pass both, `listOf(current, previous)`: a request
+  signed with either is accepted.
+- **A timestamp more than five minutes from the receiver's clock is refused**, so a captured
+  request cannot be replayed. Pass `now`, an `Instant`, in tests, and `tolerance` to narrow it.
+- **An event can arrive twice, or out of order.** Its `id` is the same on every attempt: drop
+  one you have already handled.
+
 ## License
 
 Apache-2.0

@@ -17,11 +17,13 @@ type-model/
     └── singletons.json      types with one entry, one of them extending another type
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
+webhooks/
+└── signatures.json          webhook requests a receiver must accept and refuse
 ```
 
 Nothing here is edited by hand. Each file is produced by the Coho server's own code and copied here, so a fixture is exactly what a generator will receive.
 
-Copied from coho-sdk-spec's working tree ahead of **v2026.1.0a9**, not yet tagged (2026-11-02): the type model at 1.7, with singletons and the `singletons` fixture, and delivery 2.1.0's recordings, among them `entry-with-assets`, `entry-with-repeater`, `entry-with-localized-items`, and `entry-with-nested-items`, whose `figure` and `outline` types and `citation`, `step`, `outlineSection`, `point`, and `note` components are in the delivery fixture. Copy a tagged release and name it here.
+Copied from coho-sdk-spec's working tree ahead of **v2026.1.0a9**, not yet tagged (2026-11-02): the type model at 1.7, with singletons and the `singletons` fixture, and delivery 2.1.0's recordings, among them `entry-with-assets`, `entry-with-repeater`, `entry-with-localized-items`, and `entry-with-nested-items`, whose `figure` and `outline` types and `citation`, `step`, `outlineSection`, `point`, and `note` components are in the delivery fixture; and `webhooks/signatures.json`, the webhook signatures a receiver must accept and refuse, also not yet committed there. Copy a tagged release and name it here.
 
 ## The type model
 
@@ -98,3 +100,19 @@ Each file is one request to the delivery API and its answer, recorded from the s
 ## License
 
 Apache-2.0
+
+## Webhooks
+
+Coho signs every webhook request as [Standard Webhooks](https://www.standardwebhooks.com) does: HMAC-SHA256 with the endpoint's secret over `{webhook-id}.{webhook-timestamp}.{body}`, base64, written `v1,…` in `webhook-signature`. The secret is `whsec_` and its key in base64. While a secret is being rotated the header carries two signatures, space-separated.
+
+`webhooks/signatures.json` is made by the webhook sender's own code. Each case gives the headers as sent, the body, the secret a receiver holds, the Unix time it checks at, and whether it must accept the request.
+
+### Rules for `verify`
+
+- **The body as received, byte for byte.** Never parse and re-serialize it before checking: `body-re-encoded` fails if you do.
+- **Any one signature.** Accept when any space-separated `v1,` signature verifies. Ignore other versions (`v1a,` and later); a header with no `v1,` that verifies is refused.
+- **Constant time.** Compare signatures with the language's constant-time comparison.
+- **The clock.** Refuse a `webhook-timestamp` more than `toleranceSeconds` (300) before or after the receiver's time, so a captured request cannot be replayed. Let the caller pass the time, for tests.
+- **Missing headers.** Refuse a request without `webhook-id`, `webhook-timestamp`, or `webhook-signature`.
+- **Errors say which.** A refusal names its `reason`: `signature`, `timestamp`, or `headers`.
+- **One secret or several.** Take a list too, for a receiver holding both secrets during a rotation.
