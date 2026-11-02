@@ -215,7 +215,18 @@ internal class KotlinWriter(private val plan: Plan, private val packageName: Str
         for (type in types)
         {
             val name = plan.classes.getValue(type.slug)
+            val entrySlug = plan.singleton(type)
             body.line()
+            // A singleton (type model 1.7) has one entry, so one getter in place of a list and a read by slug.
+            if (entrySlug != null)
+            {
+                body.line("$INDENT${kdoc(type.name, "A singleton: `get()` reads its one entry, null before it is first written.")}")
+                body.line(
+                    "${INDENT}val ${plan.readers.getValue(type.slug)}: SingletonReader<$name> = " +
+                        "content.singleton(${literal(type.slug)}, ${literal(entrySlug)}, $name::class.java)",
+                )
+                continue
+            }
             body.line("$INDENT${kdoc(type.name, if (plan.isOpen(type.slug)) "Its lists hold the types that extend it too, each as its own class." else "")}")
             body.line("${INDENT}val ${plan.readers.getValue(type.slug)}: TypeReader<$name, ${order(type)}> = content.type(${literal(type.slug)}, $name::class.java)")
         }

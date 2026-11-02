@@ -13,14 +13,15 @@ type-model/
     ├── inheritance.json     types that extend others, abstract ones, and links to a base type
     ├── traits.json          groups of fields that types take
     ├── lists.json           lists of text, numbers, and date-times, localized and not
-    └── nested.json          items inside items, and a component that holds itself
+    ├── nested.json          items inside items, and a component that holds itself
+    └── singletons.json      types with one entry, one of them extending another type
 delivery/
 └── recordings/              what the delivery API answered to a fixed set of requests
 ```
 
 Nothing here is edited by hand. Each file is produced by the Coho server's own code and copied here, so a fixture is exactly what a generator will receive.
 
-Copied from coho-sdk-spec's working tree ahead of **v2026.1.0a8**, not yet tagged (2026-10-31): the type model at 1.6, with nested repeaters and the `nested` fixture, and delivery 2.1.0's recordings, among them `entry-with-assets`, `entry-with-repeater`, `entry-with-localized-items`, and `entry-with-nested-items`, whose `figure` and `outline` types and `citation`, `step`, `outlineSection`, `point`, and `note` components are in the delivery fixture. Copy a tagged release and name it here.
+Copied from coho-sdk-spec's working tree ahead of **v2026.1.0a9**, not yet tagged (2026-11-02): the type model at 1.7, with singletons and the `singletons` fixture, and delivery 2.1.0's recordings, among them `entry-with-assets`, `entry-with-repeater`, `entry-with-localized-items`, and `entry-with-nested-items`, whose `figure` and `outline` types and `citation`, `step`, `outlineSection`, `point`, and `note` components are in the delivery fixture. Copy a tagged release and name it here.
 
 ## The type model
 
@@ -39,6 +40,7 @@ A language-neutral description of one branch's or tag's content types. Code gene
 - **Lists are their own kind** (since 1.5). A field of `kind: list` is an array of plain values, each of the kind in `item`: `text`, `integer`, `number`, or `datetime`. Type it as a list of that kind (`readonly string[]` in TypeScript). `min` and `max` count its values. A localized list is delivered as the requested locale's array, and an empty array is a value, "none in this locale", where an untranslated locale leaves the field out, so `presence` still decides optionality. **Keep the two apart in generated code**: a missing localized list is absent (`undefined`, `None`, `null`), never an empty list, so "not translated" and "none here" read differently. A missing list that is not localized may read as empty, as a list of links does. A list is never sortable. References and assets keep `many`: a list is a kind of its own so that a generator that predates it types the field untyped, never wrongly as one value.
 - **Component fields can be localized.** Delivery projects a localized field inside a repeater's item exactly as at the top level: one locale's value, absent where that locale has none. Such a field is `maybe`, as any localized field is, and needs nothing new from a generator.
 - **Items hold items** (since 1.6). A component's field may be a repeater, so an item holds items, and a component may hold itself: a `menuItem` whose `children` are `menuItem`s. Generate a recursive type where the model recurses. Delivery projects localized fields at every level, and an entry nests items 5 deep at most. **Filter and hydrate at every level**: leave out an item of a component the code was not generated with wherever it is, not only in a content type's own repeaters, and report it, so a nested item is never typed as something it is not. Nothing in the shape changes, so a generator that predates 1.6 still types nested items, but filters only the first level.
+- **A singleton has one entry** (since 1.7). `singleton: true` marks a content type with at most one entry on a ref, and `entrySlug` is the slug that entry answers to: the type's slug in kebab case, `siteSettings` to `site-settings`. Use `entrySlug`; do not derive it. Generate one getter in place of the type's list and read by slug. It reads `entries-by-slug/{entrySlug}` and returns the entry, typed as the type, or nothing before the entry is first written on the ref, as for any missing slug. A singleton is never abstract and never a component, and no type extends it, but it may extend a type, so a read of its parent still includes its entry. Delivery has no route of its own for it. A generator that predates 1.7 types a singleton as an ordinary type, which is still correct.
 - **Unknown field kinds are untyped.** If `kind` is one you do not know, emit the field as untyped and print a warning. Never fail.
 - **Print `warnings`.** When present, each one names a type and field that need attention.
 - **Fields hidden from the API are already gone.** Do not look for them.
@@ -90,6 +92,7 @@ Each file is one request to the delivery API and its answer, recorded from the s
 | `traits` | traits (1.4): `seo` taken by `page` and inherited by `article`, which tightens its meta title, and `publishing` and `socialCard` taken by `article`, `socialCard` by an unrelated `person` too |
 | `lists` | lists (1.5): a localized list of text with a `max`, lists of numbers and of date-times, one required with a `min`, and lists inside a component, one of them localized |
 | `nested` | items inside items (1.6): a `page` of `section`s holding `card`s, and a `siteNavigation` whose `footerLinks` are `menuItem`s, each holding `menuItem`s, with translated labels, and whose `topNavigation` is a list per locale of `localeMenuItem`s, which hold themselves too and have plain labels |
+| `singletons` | singletons (1.7): `siteSettings`, with a link to `homePage`, a singleton that extends `page`, so a read of `page` includes it |
 | `inheritance` | type inheritance (1.3): an abstract `page`, `servicePage` and `landingPage` extending it, `premiumService` extending `servicePage` with a narrower choice, a `menu` linking to `page` and to `servicePage`, and an abstract component `block` with two components extending it, held by a repeater of `block` |
 
 ## License

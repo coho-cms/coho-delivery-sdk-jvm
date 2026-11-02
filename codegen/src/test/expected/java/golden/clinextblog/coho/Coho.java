@@ -31,7 +31,7 @@ public final class Coho
     );
 
     /** Where these types came from, for reporting which release a build was made from. */
-    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b0", "v1.0.0", true, "sha256:dd33e07ff418b37690bdfc9b6b959f9dc08e64f63e043ef160e9d0b5887d6f67", "1.6");
+    public static final Source SOURCE = new Source("01920000-0000-7000-8000-00000000c0b0", "v1.0.0", true, "sha256:dd33e07ff418b37690bdfc9b6b959f9dc08e64f63e043ef160e9d0b5887d6f67", "1.7");
 
     /** The types an entry can be: every content type that is not abstract. */
     public static final List<String> CONTENT_TYPES = List.of("blogPost", "tag", "teamMember");

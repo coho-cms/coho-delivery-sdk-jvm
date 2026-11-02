@@ -255,7 +255,7 @@ internal class JavaWriter(private val plan: Plan, private val packageName: Strin
         body.line("${INDENT}private final ContentClient content;")
         for (type in types)
         {
-            body.line("${INDENT}private final TypeReader<${plan.classes.getValue(type.slug)}, ${order(type)}> ${plan.readers.getValue(type.slug)};")
+            body.line("${INDENT}private final ${reader(type)} ${plan.readers.getValue(type.slug)};")
         }
         body.line()
         body.line("${INDENT}public Coho(ContentConfig config)")
@@ -268,7 +268,10 @@ internal class JavaWriter(private val plan: Plan, private val packageName: Strin
         body.line("$INDENT${INDENT}this.content = new ContentClient(config, FACTORIES, options);")
         for (type in types)
         {
-            body.line("$INDENT${INDENT}this.${plan.readers.getValue(type.slug)} = content.type(${literal(type.slug)}, ${plan.classes.getValue(type.slug)}.class);")
+            val name = plan.classes.getValue(type.slug)
+            val read = plan.singleton(type)?.let { "content.singleton(${literal(type.slug)}, ${literal(it)}, $name.class)" }
+                ?: "content.type(${literal(type.slug)}, $name.class)"
+            body.line("$INDENT${INDENT}this.${plan.readers.getValue(type.slug)} = $read;")
         }
         body.line("$INDENT}")
         body.line()
@@ -280,9 +283,15 @@ internal class JavaWriter(private val plan: Plan, private val packageName: Strin
         for (type in types)
         {
             val reader = plan.readers.getValue(type.slug)
+            val note = when
+            {
+                plan.singleton(type) != null -> "A singleton: {@code get()} reads its one entry, null before it is first written."
+                plan.isOpen(type.slug) -> "Its lists hold the types that extend it too, each as its own class."
+                else -> ""
+            }
             body.line()
-            body.line("$INDENT${doc(type.name, if (plan.isOpen(type.slug)) "Its lists hold the types that extend it too, each as its own class." else "")}")
-            body.line("${INDENT}public TypeReader<${plan.classes.getValue(type.slug)}, ${order(type)}> $reader()")
+            body.line("$INDENT${doc(type.name, note)}")
+            body.line("${INDENT}public ${reader(type)} $reader()")
             body.line("$INDENT{")
             body.line("$INDENT${INDENT}return $reader;")
             body.line("$INDENT}")
@@ -319,6 +328,14 @@ internal class JavaWriter(private val plan: Plan, private val packageName: Strin
         body.line("}")
         return file("Coho", body.toString())
     }
+
+    /**
+     * A type's reader on `Coho`. A singleton (type model 1.7) has one entry, so one getter in place
+     * of a list and a read by slug.
+     */
+    private fun reader(type: ContentType) =
+        if (plan.singleton(type) != null) "SingletonReader<${plan.classes.getValue(type.slug)}>"
+        else "TypeReader<${plan.classes.getValue(type.slug)}, ${order(type)}>"
 
     private fun order(type: ContentType) =
         if (type.fields.any { it.sortable }) "${plan.classes.getValue(type.slug)}.SortBy" else "NoOrder"

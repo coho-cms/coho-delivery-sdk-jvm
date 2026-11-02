@@ -44,9 +44,9 @@ class GenerateTest
         assertEquals(emptyList(), problems)
     }
 
-    private fun model(fields: String, slug: String = "story", immutable: Boolean = true) = TypeModel.parse(
-        """{"irVersion":"1.6","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
-            "types":{"$slug":{"slug":"$slug","name":"Story","version":"1","fields":[$fields]}}}""",
+    private fun model(fields: String, slug: String = "story", immutable: Boolean = true, extra: String = "") = TypeModel.parse(
+        """{"irVersion":"1.7","source":{"project":"p","ref":"v1","immutable":$immutable,"schemaHash":"sha256:0"},
+            "types":{"$slug":{"slug":"$slug","name":"Story","version":"1"$extra,"fields":[$fields]}}}""",
         "test",
     )
 
@@ -144,6 +144,35 @@ class GenerateTest
         assertContains(contents(java, "MenuItem.java"), "this.children = entry.items(\"children\", MenuItem.class);")
         assertContains(contents(java, "MenuItem.java"), "public List<MenuItem> getChildren()")
         assertEquals(emptyList(), java.warnings)
+    }
+
+    @Test
+    fun `a singleton is read by one getter, at the slug the type model names`()
+    {
+        val fixture = File(spec, "type-model/fixtures/singletons.json")
+        val kotlin = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.KOTLIN)
+        val client = contents(kotlin, "Coho.kt")
+        assertContains(client, """val siteSettings: SingletonReader<SiteSettings> = content.singleton("siteSettings", "site-settings", SiteSettings::class.java)""")
+        // It extends page, so a read of page finds it, as any subtype's entry.
+        assertContains(client, """val page: TypeReader<Page, NoOrder> = content.type("page", Page::class.java)""")
+        assertContains(contents(kotlin, "SiteSettings.kt"), "/** Site settings. A singleton: its one entry answers to \"site-settings\". */")
+        assertEquals(emptyList(), kotlin.warnings)
+
+        val java = generate(TypeModel.parse(fixture.readText(), fixture.name), "p.coho", Language.JAVA)
+        assertContains(contents(java, "Coho.java"), "this.homePage = content.singleton(\"homePage\", \"home-page\", HomePage.class);")
+        assertContains(contents(java, "Coho.java"), "public SingletonReader<HomePage> homePage()")
+        assertEquals(emptyList(), java.warnings)
+    }
+
+    @Test
+    fun `a singleton with no entrySlug is read as an ordinary type, with a warning`()
+    {
+        val generated = generate(model(field("siteName"), slug = "siteSettings", extra = ",\"singleton\":true"), "p.coho", Language.KOTLIN)
+        assertContains(contents(generated, "Coho.kt"), "val siteSettings: TypeReader<SiteSettings, NoOrder> = content.type(\"siteSettings\", SiteSettings::class.java)")
+        assertEquals(
+            listOf("Type 'siteSettings' is a singleton with no entrySlug, so it is read as an ordinary type. Pull the type model again."),
+            generated.warnings,
+        )
     }
 
     @Test

@@ -74,6 +74,14 @@ The generated code is in the package's `coho` subpackage, `com.acme.content.coho
   `instanceof PhotoGallery` or `is PhotoGallery` tells them apart.
 - **A trait is an interface**, `Seo`, which every type with it implements, so code written
   against it takes an entry of any of them.
+- **A singleton has one getter.** A type marked as a singleton has one entry on a ref, so
+  `coho.siteSettings().get()` in Java and `coho.siteSettings.get()` in Kotlin read it, as a
+  `SiteSettings`, and are null before it is first written; each has a `getAsync` form. It
+  has no `list`, `bySlug`, or `byId`: its entry's slug is fixed, and the getter reads it from
+  the type model's `entrySlug`. A singleton that extends a type is still read with its
+  parent, so `coho.page().list()` includes the home page. Since type model 1.7, with
+  coho-delivery from this release. An older coho-codegen reads a singleton as an ordinary
+  type, which still works.
 - **Each type's `SortBy`** names the fields it can be sorted by, `BlogPost.SortBy.PUBLISHED_AT`
   in Java and `BlogPost.SortBy.PublishedAt` in Kotlin, each with its `descending` form, so an
   unsortable order does not compile.

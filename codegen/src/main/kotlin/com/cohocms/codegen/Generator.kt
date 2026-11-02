@@ -82,7 +82,8 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
     private val reserved = setOf(
         "Asset", "ClientOptions", "Coho", "CompletableFuture", "ContentClient", "ContentConfig", "EntryBase", "EntryFactory",
         "EntryReader", "HydratedEntry", "ImageAsset", "ItemBase", "JsonNode", "Linked", "List", "Map", "NoOrder", "Nullable",
-        "Object", "OffsetDateTime", "Override", "ReadOptions", "RepeaterItem", "SortBy", "SortOrder", "Source", "String", "TypeReader",
+        "Object", "OffsetDateTime", "Override", "ReadOptions", "RepeaterItem", "SingletonReader", "SortBy", "SortOrder", "Source", "String",
+        "TypeReader",
     )
 
     /** Each type's, component's and trait's class: `blogPost` is `BlogPost`. */
@@ -179,9 +180,19 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
                 warnings += "Type '${type.slug}' is read as coho.${member}Type, because coho.$member is taken."
                 member = "${member}Type"
             }
+            if (type.singleton && singleton(type) == null)
+            {
+                warnings += "Type '${type.slug}' is a singleton with no entrySlug, so it is read as an ordinary type. Pull the type model again."
+            }
             put(type.slug, member)
         }
     }
+
+    /**
+     * The slug a singleton's one entry answers to (type model 1.7), which its one getter reads in
+     * place of a list and a read by slug; or null, for a type read as any other is.
+     */
+    fun singleton(type: ContentType): String? = type.entrySlug?.takeIf { type.singleton && it.isNotEmpty() }
 
     /** A field's doc note. [list] says the field reads as a list that is empty, never null, when missing. */
     fun note(field: Field, list: Boolean): String = listOfNotNull(
@@ -205,6 +216,7 @@ internal class Plan(val model: TypeModel, val warnings: MutableList<String>)
         if (component) "A repeater item, stored in the entry that holds it." else null,
         parent(type)?.let { "Extends ${classes.getValue(it.slug)}, and has every field it has." },
         if (type.abstract) "Abstract: ${if (component) "an item" else "an entry"} is one of the types that extend it." else null,
+        singleton(type)?.let { "A singleton: its one entry answers to \"$it\"." },
         traitsOf(type).takeIf { it.isNotEmpty() }?.let { "Has the trait${if (it.size == 1) "" else "s"} ${listed(it)}." },
     ).joinToString(" ")
 
@@ -295,5 +307,5 @@ internal fun imports(body: String, available: Map<String, String>): List<String>
 
 internal val RUNTIME_TYPES = listOf(
     "Asset", "ClientOptions", "ContentClient", "ContentConfig", "EntryBase", "EntryFactory", "EntryReader", "HydratedEntry",
-    "ImageAsset", "ItemBase", "Linked", "NoOrder", "ReadOptions", "RepeaterItem", "SortOrder", "Source", "TypeReader",
+    "ImageAsset", "ItemBase", "Linked", "NoOrder", "ReadOptions", "RepeaterItem", "SingletonReader", "SortOrder", "Source", "TypeReader",
 ).associateWith { "com.cohocms.delivery.$it" }

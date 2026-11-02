@@ -65,6 +65,10 @@ println(post?.author?.value?.fullName)
 - **A link to a base type holds its subtype.** Each entry is built as its own class, so a link
   to a `page` that is a landing page holds a `LandingPage`, and `instanceof` or `is` tells
   them apart.
+- **A singleton is read with `get()`.** `content.singleton("siteSettings", "site-settings",
+  SiteSettings::class.java).get()` reads a type that has one entry on a ref, by the slug its
+  entry answers to, and is null before that entry is first written, or when the entry at that
+  slug is of another type. Generated code passes the type model's `entrySlug`.
 - **Problems are reported, not thrown.** An entry missing a field its type always has, which
   happens to older entries after a field becomes required, takes the field's empty value,
   and is passed to `ClientOptions.onIssue`, once per entry and field for the life of the

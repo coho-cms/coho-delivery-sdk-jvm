@@ -99,6 +99,9 @@ class TypeModel(
                     name = type.path("name").asText(slug),
                     extends = type.get("extends")?.asText(),
                     abstract = type.path("abstract").asBoolean(false),
+                    // Only a content type can be a singleton.
+                    singleton = key == "types" && type.path("singleton").asBoolean(false),
+                    entrySlug = type.get("entrySlug")?.takeIf { it.isTextual }?.asText(),
                     traits = type.path("traits").map { it.asText() },
                     fields = type.path("fields").map()
                     { field ->
@@ -125,12 +128,21 @@ class TypeModel(
     }
 }
 
-/** A content type, a component type, or a trait. Its [fields] already include what it inherits. */
+/**
+ * A content type, a component type, or a trait. Its [fields] already include what it inherits.
+ *
+ * @property singleton Since 1.7: the type has one entry on a ref, which answers to [entrySlug].
+ *   Never abstract, and no type extends it.
+ * @property entrySlug Since 1.7, on a singleton: the slug its entry answers to, the type's slug
+ *   in kebab case.
+ */
 class ContentType(
     val slug: String,
     val name: String,
     val extends: String?,
     val abstract: Boolean,
+    val singleton: Boolean,
+    val entrySlug: String?,
     val traits: List<String>,
     val fields: List<Field>,
 )

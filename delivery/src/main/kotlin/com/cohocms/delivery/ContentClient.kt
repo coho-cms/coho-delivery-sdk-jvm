@@ -62,6 +62,12 @@ class ContentClient @JvmOverloads constructor(
      */
     fun <T : Any, O : SortOrder> type(slug: String, type: Class<T>): TypeReader<T, O> = TypeReader(this, slug, type)
 
+    /**
+     * The read of a singleton type, whose one entry answers to [entrySlug], as [type]. Generated
+     * code passes the type model's `entrySlug`, so the slug rule lives in one place, the server.
+     */
+    fun <T : Any> singleton(slug: String, entrySlug: String, type: Class<T>): SingletonReader<T> = SingletonReader(this, slug, entrySlug, type)
+
     /** Once per issue for the life of the client, so a page served a thousand times reports its broken entry once. */
     private class Issues(private val onIssue: Consumer<Issue>) : Consumer<Issue>
     {
@@ -118,4 +124,30 @@ class TypeReader<T : Any, O : SortOrder> internal constructor(
 
     @JvmOverloads
     fun list(options: ListOptions<O> = ListOptions()): Page<T> = join(listAsync(options))
+}
+
+/**
+ * The read of a singleton type (type model 1.7): a type with one entry on a ref, which answers
+ * to a fixed slug, [entrySlug]. Hydrated as [T].
+ */
+class SingletonReader<T : Any> internal constructor(
+    private val content: ContentClient,
+    private val slug: String,
+    private val entrySlug: String,
+    private val type: Class<T>,
+)
+{
+    /** The slug is fixed, so an entry of another type that holds it is not this one. */
+    private fun of(entry: EntryBase?): T? = entry?.takeIf { it.type == slug && type.isInstance(it) }?.let { type.cast(it) }
+
+    /**
+     * Its entry, or null before the entry is first written on the ref. It is read by its slug, as
+     * any other is: delivery has no route of its own for it.
+     */
+    @JvmOverloads
+    fun getAsync(options: ReadOptions = ReadOptions.DEFAULT): CompletableFuture<T?> =
+        content.bySlugAsync(entrySlug, options).thenApply { of(it) }
+
+    @JvmOverloads
+    fun get(options: ReadOptions = ReadOptions.DEFAULT): T? = join(getAsync(options))
 }

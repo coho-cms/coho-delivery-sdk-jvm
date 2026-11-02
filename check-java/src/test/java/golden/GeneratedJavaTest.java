@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.cohocms.delivery.Answering;
 import com.cohocms.delivery.ClientOptions;
 import com.cohocms.delivery.ContentConfig;
 import com.cohocms.delivery.EntryBase;
@@ -19,6 +20,7 @@ import com.cohocms.delivery.Page;
 import com.cohocms.delivery.ReadOptions;
 import com.cohocms.delivery.ReleasedConfig;
 import com.cohocms.delivery.Replay;
+import com.cohocms.delivery.SingletonReader;
 import com.cohocms.delivery.Spec;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -32,8 +34,11 @@ import golden.deliveryfixture.coho.Outline;
 import golden.deliveryfixture.coho.OutlineSection;
 import golden.deliveryfixture.coho.Point;
 import golden.deliveryfixture.coho.Step;
+import golden.singletons.coho.HomePage;
+import golden.singletons.coho.SiteSettings;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -158,6 +163,43 @@ class GeneratedJavaTest
         List<Point> children = outline.getSections().get(0).getPoints().get(0).getChildren();
         assertEquals(List.of("Measure"), children.stream().map(Point::getText).toList());
         assertEquals(List.of("unknown-item sections/0/points/0/children"), issues.stream().map(issue -> issue.getKind() + " " + issue.getField()).toList());
+    }
+
+    @Test
+    void aSingletonIsReadByItsOneGetterAtTheSlugTheTypeModelNames()
+    {
+        // The recordings have no singleton, so its entry is answered here.
+        Answering answering = new Answering(200, """
+            {"roots":["s"],"entries":{
+                "s":{"id":"s","slug":"site-settings","type":"siteSettings","fields":{"siteName":"Acme","home":"h"}},
+                "h":{"id":"h","slug":"home-page","type":"homePage","fields":{"title":"Home","featured":[]}}},
+                "unresolved":{}}""", Map.of("content-type", "application/json"));
+        golden.singletons.coho.Coho coho = new golden.singletons.coho.Coho(
+            new ContentConfig(new ReleasedConfig("https://delivery.test", "p1", "test-key"), "v0.0.1"),
+            new ClientOptions().withTransport(answering));
+
+        SingletonReader<SiteSettings> reader = coho.siteSettings();
+        SiteSettings settings = reader.get(ReadOptions.DEFAULT.withDepth(1));
+        assertNotNull(settings);
+        assertEquals("Acme", settings.getSiteName());
+        assertNotNull(settings.getHome());
+        HomePage home = settings.getHome().getValue();
+        assertNotNull(home);
+        // It extends page, so it is a Page too.
+        golden.singletons.coho.Page page = home;
+        assertEquals("Home", page.getTitle());
+        assertEquals("https://delivery.test/v1/projects/p1/v0.0.1/entries-by-slug/site-settings?depth=1", answering.getAsked().get(0).getUrl());
+        // The entry at another singleton's slug is of another type, so it is not that singleton's.
+        assertNull(coho.homePage().getAsync(ReadOptions.DEFAULT).join());
+    }
+
+    @Test
+    void aSingletonIsNullBeforeItsEntryIsFirstWritten()
+    {
+        golden.singletons.coho.Coho coho = new golden.singletons.coho.Coho(
+            new ContentConfig(new ReleasedConfig("https://delivery.test", "p1", "test-key"), "v0.0.1"),
+            new ClientOptions().withTransport(new Answering()));
+        assertNull(coho.siteSettings().get());
     }
 
     @Test

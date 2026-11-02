@@ -302,6 +302,23 @@ class HydrationTest
     }
 
     @Test
+    fun `a singleton reads its one entry by its fixed slug, and is null when that slug is another type's or no one's`()
+    {
+        // The recordings have no singleton, so `chain-1` stands in for an entry slug.
+        val replay = Replay()
+        val config = ContentConfig(ReleasedConfig("https://delivery.test", "p1", KEY), "v0.0.1", "en-US")
+        val content = ContentClient(config, factories, ClientOptions(replay))
+        val settings = content.singleton("article", "chain-1", Article::class.java).get(ReadOptions(depth = 2))
+        assertEquals("Chain 1", settings?.title)
+        assertEquals("$BASE/v0.0.1/entries-by-slug/chain-1", replay.asked.first().url.substringBefore('?'))
+
+        assertNull(content.singleton("notice", "chain-1", EntryBase::class.java).get(ReadOptions(depth = 2)))
+        // The recording asked without a locale, so neither does this client.
+        val bare = ContentClient(config.copy(locale = null), factories, ClientOptions(Replay()))
+        assertNull(bare.singleton("article", "nope", Article::class.java).get())
+    }
+
+    @Test
     fun `the environment chooses released content or a preview`()
     {
         fun from(vararg values: Pair<String, String>) = CohoEnvironment.from(Function { values.toMap()[it] })
