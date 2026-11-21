@@ -2,9 +2,6 @@ package com.cohocms.delivery
 
 import com.fasterxml.jackson.databind.JsonNode
 
-/** The key delivery sends an entry's prose assets under (coho-data doc 80 §10). */
-private const val BODY_ASSETS = "_bodyAssets"
-
 /**
  * The system values on every entry. Generated classes derive from it, each reading its own
  * fields from the [EntryReader] it is built with.
@@ -18,6 +15,8 @@ private const val BODY_ASSETS = "_bodyAssets"
  *   second request. A system value rather than a generated field, which is why it is here
  *   beside [slug]: no content type declares it, and the type model does not carry it. Empty
  *   on an entry whose type could hold no prose, and on one whose prose names nothing.
+ *   [Prose.resolve] is what turns a reference in a body into one of these assets' URLs; read
+ *   its warning first, since a resolved body is for rendering and never for saving.
  */
 abstract class EntryBase protected constructor(entry: EntryReader)
 {
@@ -25,7 +24,7 @@ abstract class EntryBase protected constructor(entry: EntryReader)
     val type: String = entry.type
     val slug: String = entry.slug
     val locale: String? = entry.locale
-    val bodyAssets: List<Asset> = entry.assets(BODY_ASSETS)
+    val bodyAssets: List<Asset> = entry.assets(Prose.BODY_ASSETS)
 
     override fun toString() = "${javaClass.simpleName}($type '$slug')"
 }

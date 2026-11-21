@@ -120,6 +120,36 @@ A field that accepts only raster images is an `ImageAsset`, with its `width` and
 The edge snaps widths up to `Asset.IMAGE_WIDTHS`. An asset is as public as its URL, drafts
 included.
 
+## Assets in prose
+
+A Markdown or HTML field names an asset by **slug** rather than by URL —
+`![A bridge](asset:bridge-at-dusk)` — so the body carries no asset domain, survives being
+moved between branches, and is seen by everything that counts a file as used. Coho records
+what the prose named in the entry's `bodyAssets`; `Prose.resolve` turns one into the other:
+
+```kotlin
+val body = Prose.resolve(post.body, post)        // every asset: reference now a URL
+Prose.resolve(post.body, post.bodyAssets)        // or against a list you hold yourself
+Prose.referencedSlug(value)                      // the slug a value references, or null
+```
+
+Resolve at the read, once, rather than at each place a body is drawn: a body usually reaches
+more than one renderer, and the version none of them can forget is the one where the entry
+arrives.
+
+⛔ **Never resolve a body you may write back.** A resolved body holds URLs, and saving one
+destroys the reference the scheme exists to keep: the asset stops counting as used, the link
+breaks when the file is replaced, and moving the entry to another project carries the old
+domain with it. Anything that edits content must keep the body exactly as delivered — which
+is why resolving is a call you make and not something a read does for you.
+
+A reference the entry does not carry is left as written, so an image falls back to its alt
+text. `src`, `href` and `poster` resolve, in a Markdown link or directive and in an HTML
+field, and only when the whole value is the reference: `alt="asset:x"` and prose about the
+scheme are left alone. A `srcset` still needs the asset, since the widths to offer and an
+image's own dimensions are the asset's and Markdown has nowhere to put either, so a renderer
+that wants them matches the resolved URL back to an asset in `bodyAssets`.
+
 ## Caching
 
 Each client keeps a private cache of responses, following `Cache-Control` and `ETag`. A tag
