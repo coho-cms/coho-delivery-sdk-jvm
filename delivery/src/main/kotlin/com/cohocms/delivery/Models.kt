@@ -2,12 +2,22 @@ package com.cohocms.delivery
 
 import com.fasterxml.jackson.databind.JsonNode
 
+/** The key delivery sends an entry's prose assets under (coho-data doc 80 §10). */
+private const val BODY_ASSETS = "_bodyAssets"
+
 /**
  * The system values on every entry. Generated classes derive from it, each reading its own
  * fields from the [EntryReader] it is built with.
  *
  * @property type The content type's slug.
  * @property locale The locale the entry was projected for. Null when none was requested.
+ * @property bodyAssets The assets this entry's prose points at, since delivery 2.3.0
+ *   (coho-data doc 80 §10). A Markdown or HTML field names an asset by slug,
+ *   `asset:bridge-at-dusk`, and Coho records what the prose named on every save. Delivered
+ *   embedded, like any asset field, so a page can turn a reference back into a URL without a
+ *   second request. A system value rather than a generated field, which is why it is here
+ *   beside [slug]: no content type declares it, and the type model does not carry it. Empty
+ *   on an entry whose type could hold no prose, and on one whose prose names nothing.
  */
 abstract class EntryBase protected constructor(entry: EntryReader)
 {
@@ -15,6 +25,7 @@ abstract class EntryBase protected constructor(entry: EntryReader)
     val type: String = entry.type
     val slug: String = entry.slug
     val locale: String? = entry.locale
+    val bodyAssets: List<Asset> = entry.assets(BODY_ASSETS)
 
     override fun toString() = "${javaClass.simpleName}($type '$slug')"
 }

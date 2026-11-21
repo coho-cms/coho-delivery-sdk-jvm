@@ -95,11 +95,15 @@ data class ImageOptions @JvmOverloads constructor(
  * working.
  *
  * @property id The asset's id: what the entry's field links.
+ * @property slug The asset's slug, since delivery 2.3.0: what prose names it by. A Markdown
+ *   or HTML field writes `asset:<slug>`, and a page resolving one matches it against this
+ *   (coho-data doc 80 ML-1).
  * @property url The original bytes, from the asset CDN.
  * @property imageUrl Raster images only: the base that resizes on request. Use [image].
  */
 open class Asset(
     val id: String?,
+    val slug: String?,
     val url: String?,
     open val imageUrl: String?,
     open val file: AssetFile?,
@@ -238,14 +242,15 @@ open class Asset(
             val focal = json.get("focalPoint")?.takeIf { it.isObject }?.let { FocalPoint(it.path("x").asDouble(), it.path("y").asDouble()) }
             val imageUrl = text(json, "imageUrl")
             val id = text(json, "id")
+            val slug = text(json, "slug")
             val url = text(json, "url")
             return if (imageUrl != null && file?.width != null && file.height != null)
             {
-                ImageAsset(id, url, imageUrl, file, focal, text(json, "title"), text(json, "alt"))
+                ImageAsset(id, slug, url, imageUrl, file, focal, text(json, "title"), text(json, "alt"))
             }
             else
             {
-                Asset(id, url, imageUrl, file, focal, text(json, "title"), text(json, "alt"))
+                Asset(id, slug, url, imageUrl, file, focal, text(json, "title"), text(json, "alt"))
             }
         }
 
@@ -265,13 +270,14 @@ open class Asset(
  */
 class ImageAsset internal constructor(
     id: String?,
+    slug: String?,
     url: String?,
     override val imageUrl: String,
     override val file: AssetFile,
     focalPoint: FocalPoint?,
     title: String?,
     alt: String?,
-) : Asset(id, url, imageUrl, file, focalPoint, title, alt)
+) : Asset(id, slug, url, imageUrl, file, focalPoint, title, alt)
 {
     val width: Int get() = file.width ?: 0
     val height: Int get() = file.height ?: 0
