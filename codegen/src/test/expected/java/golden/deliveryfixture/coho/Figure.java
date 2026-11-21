@@ -12,6 +12,7 @@ import org.jspecify.annotations.Nullable;
 public final class Figure extends EntryBase
 {
     private final @Nullable String caption;
+    private final @Nullable String body;
     private final @Nullable Asset image;
     private final @Nullable Asset poster;
     private final List<Asset> gallery;
@@ -24,6 +25,7 @@ public final class Figure extends EntryBase
     {
         super(entry);
         this.caption = entry.text("caption");
+        this.body = entry.text("body");
         this.image = entry.asset("image");
         this.poster = entry.asset("poster");
         this.gallery = entry.assets("gallery");
@@ -37,6 +39,12 @@ public final class Figure extends EntryBase
     public @Nullable String getCaption()
     {
         return caption;
+    }
+
+    /** body. Markdown. */
+    public @Nullable String getBody()
+    {
+        return body;
     }
 
     /** image. Accepts image/*. Null where the asset it linked is gone. */

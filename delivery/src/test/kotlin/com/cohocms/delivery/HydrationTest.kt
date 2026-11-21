@@ -30,6 +30,7 @@ class Step(item: EntryReader) : ItemBase(item)
 
 class Figure(entry: EntryReader) : EntryBase(entry)
 {
+    val body: String? = entry.text("body")
     val image: Asset? = entry.asset("image")
     val poster: Asset? = entry.asset("poster")
     val gallery: List<Asset> = entry.assets("gallery")
@@ -158,6 +159,29 @@ class HydrationTest
         assertTrue(image.image(ImageOptions.fill(800, 400)).endsWith("?w=800&h=400&fit=fill&fx=0.25&fy=0.75"))
         assertNull(figure.poster)
         assertEquals(listOf("image/jpeg", "image/svg+xml", "application/pdf"), figure.gallery.map { it.file?.mediaType })
+    }
+
+    /*
+     * The prose scheme, against what the server sends rather than a body written here.
+     *
+     * `figure-1`'s body names its image as `asset:bridge`, and the recording carries that asset
+     * in `_bodyAssets` — so this checks the resolver, the key it reads, and delivery's embedding
+     * of a slug all at once. A hand-written body could not: it would agree with whatever the
+     * resolver happened to do.
+     */
+    @Test
+    fun `a recorded body resolves to the URL delivery sent for the asset it names`()
+    {
+        val figure = assertIs<Figure>(hydrated(graph("entry-with-assets")).first.single())
+
+        // As delivered: the reference stands, and the asset it names is carried beside it.
+        assertEquals("A figure, and the bridge: ![A bridge](asset:bridge)", figure.body)
+        assertEquals(listOf("bridge"), figure.bodyAssets.map { it.slug })
+
+        assertEquals(
+            "A figure, and the bridge: ![A bridge](${figure.image?.url})",
+            Prose.resolve(figure.body, figure),
+        )
     }
 
     @Test

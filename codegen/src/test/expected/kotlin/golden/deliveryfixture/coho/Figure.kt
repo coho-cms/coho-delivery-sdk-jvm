@@ -12,6 +12,9 @@ class Figure(entry: EntryReader) : EntryBase(entry)
     /** caption */
     val caption: String? = entry.text("caption")
 
+    /** body. Markdown. */
+    val body: String? = entry.text("body")
+
     /** image. Accepts image/\*. Null where the asset it linked is gone. */
     val image: Asset? = entry.asset("image")
 
